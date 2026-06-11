@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
-body {
-  background-color: #111827;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-font-smoothing: antialiased;
+@theme {
+  --color-breezy-blue: #2A6FDB;
+  --color-breezy-dark-blue: #1e52a4;
+  --color-breezy-dark: #16212E;
+  --color-breezy-gray: #5C708A;
+  --color-breezy-light-gray: #CDD9E6;
+  --color-breezy-bg-light: #EEF4FA;
+  --color-breezy-border-light: #E2EAF2;
 }
