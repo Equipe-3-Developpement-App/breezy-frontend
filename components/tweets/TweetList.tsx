@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { TweetCard } from "./TweetCard";
+import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { Tweet } from "@/types";
 import { getTweets, deleteTweetApi } from "@/utils/api";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -10,6 +11,9 @@ export function TweetList() {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track targeted post selected for mobile confirmation prompt inside feed stream
+  const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -111,13 +115,20 @@ export function TweetList() {
     );
   };
 
-  const handleDeleteTweet = async (tweetId: string) => {
-    setTweets((currentTweets) => currentTweets.filter((tweet) => tweet.id !== tweetId));
-    
+  const openDeleteConfirmation = (tweetId: string) => {
+    setTweetToDelete(tweetId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tweetToDelete) return;
+
     try {
-      await deleteTweetApi(tweetId);
+      setTweets((currentTweets) => currentTweets.filter((tweet) => tweet.id !== tweetToDelete));
+      await deleteTweetApi(tweetToDelete);
     } catch (err) {
       console.error("Failed to delete tweet item pipeline sync:", err);
+    } finally {
+      setTweetToDelete(null);
     }
   };
 
@@ -154,9 +165,19 @@ export function TweetList() {
           onLike={handleLikeToggle}
           onRetweet={handleRetweetToggle}
           onFollow={handleFollowToggle}
-          onDelete={handleDeleteTweet}
+          onDelete={openDeleteConfirmation}
         />
       ))}
+
+      <ConfirmationModal
+        isOpen={tweetToDelete !== null}
+        title="Supprimer le message ?"
+        message="Cette action est irréversible. Le message sera définitivement retiré du flux."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setTweetToDelete(null)}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { TweetList } from "./tweets/TweetList";
 import { NavBar } from "./layout/NavBar";
-import { ComposeModal } from "./ComposeModal";
+import { ComposeModal } from "./modals/ComposeModal";
 import { Search, Wind } from "lucide-react";
 
 export function FeedContainer() {

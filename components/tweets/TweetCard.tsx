@@ -7,7 +7,7 @@ interface TweetCardProps {
   onLike: (tweetId: string) => void;
   onRetweet: (tweetId: string) => void;
   onFollow: (userId: string) => void;
-  onDelete: (tweetId: string) => void;
+  onDelete?: (tweetId: string) => void;
 }
 
 export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: TweetCardProps) {
@@ -80,11 +80,10 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
             <Share size={17} strokeWidth={2} />
           </div>
 
-          {/* Conditional local layout trash anchor logic */}
           {tweet.user.displayName === "Camille Roy" && (
             <button
               type="button"
-              onClick={() => onDelete(tweet.id)}
+              onClick={() => onDelete && onDelete(tweet.id)}
               aria-label="Supprimer le message"
               className="cursor-pointer text-breezy-gray hover:text-red-500 transition bg-transparent border-none p-0 flex items-center justify-center"
             >
