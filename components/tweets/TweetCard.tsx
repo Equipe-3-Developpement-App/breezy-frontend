@@ -13,6 +13,9 @@ interface TweetCardProps {
 export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: TweetCardProps) {
   const displayLikeCount = tweet.likeCount;
   const displayRetweetCount = tweet.retweetCount;
+  
+  // Guard check to isolate the current session identity
+  const isOwnTweet = tweet.user.displayName === "Camille Roy";
 
   return (
     <div className="flex p-4 bg-breezy-bgLight border-b border-breezy-border-light w-full text-left">
@@ -31,16 +34,19 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
             <span className="text-[13px] text-breezy-gray">{tweet.createdAt}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onFollow(tweet.user.id)}
-            className={`px-3 py-1 text-[13px] font-bold rounded-full transition-all duration-200 ease-in-out shrink-0 cursor-pointer active:scale-95 border select-none
-              ${tweet.isFollowing
-                ? "bg-breezy-blue border-breezy-blue text-white hover:bg-breezy-darkBlue hover:border-breezy-darkBlue"
-                : "bg-transparent border-breezy-blue text-breezy-blue hover:bg-breezy-blue/10"}`}
-          >
-            {tweet.isFollowing ? "Suivi" : "Suivre"}
-          </button>
+          {/* Conditional follow button mapping switch: hidden if it's our own profile */}
+          {!isOwnTweet && (
+            <button
+              type="button"
+              onClick={() => onFollow(tweet.user.id)}
+              className={`px-3 py-1 text-[13px] font-bold rounded-full transition-all duration-200 ease-in-out shrink-0 cursor-pointer active:scale-95 border select-none
+                ${tweet.isFollowing
+                  ? "bg-breezy-blue border-breezy-blue text-white hover:bg-breezy-darkBlue hover:border-breezy-darkBlue"
+                  : "bg-transparent border-breezy-blue text-breezy-blue hover:bg-breezy-blue/10"}`}
+            >
+              {tweet.isFollowing ? "Suivi" : "Suivre"}
+            </button>
+          )}
         </div>
 
         <p className="text-[14.5px] text-breezy-dark leading-[22px] whitespace-pre-line">
@@ -80,7 +86,7 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
             <Share size={17} strokeWidth={2} />
           </div>
 
-          {tweet.user.displayName === "Camille Roy" && (
+          {isOwnTweet && (
             <button
               type="button"
               onClick={() => onDelete && onDelete(tweet.id)}

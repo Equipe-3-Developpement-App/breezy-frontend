@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { NavBar } from "./layout/NavBar";
 import { TweetCard } from "./tweets/TweetCard";
 import { ConfirmationModal } from "./modals/ConfirmationModal";
+import { ComposeModal } from "./modals/ComposeModal"; // Imported our reusable creation modal
 import { Tweet } from "@/types";
 import { getTweets, deleteTweetApi } from "@/utils/api";
 import { Settings, LogOut, X, RefreshCw } from "lucide-react";
@@ -15,8 +16,9 @@ export function ProfileContainer() {
   const [userTweets, setUserTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Track the targeted post selected for mobile confirmation prompt
+  // State managements for layout drawers triggers
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
+  const [showCompose, setShowCompose] = useState(false); // Track the compose modal overlay visibility
 
   useEffect(() => {
     let isMounted = true;
@@ -118,19 +120,15 @@ export function ProfileContainer() {
     );
   };
 
-  // Triggered when clicking the initial trash icon inside the card stream view
   const openDeleteConfirmation = (tweetId: string) => {
     setTweetToDelete(tweetId);
   };
 
-  // Executed inside the modal overlay after the user taps "Supprimer"
   const handleConfirmDelete = async () => {
     if (!tweetToDelete) return;
 
     try {
-      // Optimistic client array filter update
       setUserTweets((current) => current.filter((t) => t.id !== tweetToDelete));
-      
       await deleteTweetApi(tweetToDelete);
     } catch (err) {
       console.error("Failed to execute background local database deletion:", err);
@@ -245,7 +243,7 @@ export function ProfileContainer() {
                   onLike={handleLikeToggle}
                   onRetweet={handleRetweetToggle}
                   onFollow={handleFollowToggle}
-                  onDelete={openDeleteConfirmation} // Hooked up to pop-up visibility handler
+                  onDelete={openDeleteConfirmation}
                 />
               ))
             ) : (
@@ -263,8 +261,10 @@ export function ProfileContainer() {
         </div>
       </div>
 
+      {/* Button floating trigger wired up with the component hook toggle */}
       <button 
         type="button"
+        onClick={() => setShowCompose(true)}
         aria-label="Créer un tweet"
         className="absolute bottom-24 right-6 w-[56px] h-[56px] bg-breezy-blue hover:bg-breezy-darkBlue text-white rounded-full flex items-center justify-center shadow-xl z-30 font-bold text-2xl cursor-pointer transition-all active:scale-95 select-none"
       >
@@ -283,6 +283,11 @@ export function ProfileContainer() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setTweetToDelete(null)}
       />
+
+      {/* Reusable Compose Modal Rendering Block */}
+      {showCompose && (
+        <ComposeModal onClose={() => setShowCompose(false)} />
+      )}
 
       {showSettings && (
         <>
@@ -307,7 +312,7 @@ export function ProfileContainer() {
 
             <div className="flex flex-col w-full pt-1">
               <Link 
-                href="/login" // Updated link route straight to our fresh login screen door path
+                href="/login"
                 className="flex items-center gap-4 w-full p-4 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-xl transition-all cursor-pointer select-none group"
               >
                 <LogOut size={20} className="group-hover:scale-110 transition-transform" />
