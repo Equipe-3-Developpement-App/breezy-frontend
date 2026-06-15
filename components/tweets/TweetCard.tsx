@@ -1,6 +1,7 @@
 import React from "react";
 import { MessageCircle, Repeat2, Heart, Share, Trash2 } from "lucide-react";
 import { Tweet } from "@/types";
+import Link from "next/link";
 
 interface TweetCardProps {
   tweet: Tweet;
@@ -13,7 +14,7 @@ interface TweetCardProps {
 export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: TweetCardProps) {
   const displayLikeCount = tweet.likeCount;
   const displayRetweetCount = tweet.retweetCount;
-  
+
   // Guard check to isolate the current session identity
   const isOwnTweet = tweet.user.displayName === "Camille Roy";
 
@@ -54,11 +55,14 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
         </p>
 
         <div className="flex justify-between items-center text-breezy-gray text-[13px] font-medium max-w-[280px] mt-1 w-full">
-          
-          <div className="flex items-center gap-1.5 cursor-pointer hover:text-blue-500 group transition">
+
+          <Link
+            href={`/feed/${tweet.id}`}
+            className="flex items-center gap-1.5 cursor-pointer hover:text-blue-500 group transition text-inherit no-underline"
+          >
             <MessageCircle size={17} strokeWidth={2} className="group-hover:scale-110 transition" />
-            <span>0</span>
-          </div>
+            <span>{(tweet as any).commentCount || 0}</span>
+          </Link>
 
           <button
             type="button"

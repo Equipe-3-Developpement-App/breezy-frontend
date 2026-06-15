@@ -1,12 +1,10 @@
 import axios from "axios";
 
-// --- API CLIENT CONFIGURATION ---
 const apiClient = axios.create({
   baseURL: "http://localhost:3000/api",
   timeout: 5000,
 });
 
-// --- HARDCODED INITIAL SOURCE SEED ---
 const INITIAL_TWEETS = [
   {
     id: "1",
@@ -19,7 +17,23 @@ const INITIAL_TWEETS = [
     retweetCount: 8,
     likeCount: 64,
     isLiked: false,
-    isRetweeted: false
+    isRetweeted: false,
+    comments: [
+      {
+        id: "c1",
+        name: "Yacine Bélanger",
+        handle: "@yacineb",
+        time: "1 h",
+        avatar: "YB",
+        text: "Totalement d'accord, l'espace blanc est un ingrédient à part entière !",
+        commentCount: 0,
+        retweetCount: 2,
+        likeCount: 4,
+        isLiked: false,
+        isRetweeted: false,
+        comments: []
+      }
+    ]
   },
   {
     id: "2",
@@ -32,25 +46,11 @@ const INITIAL_TWEETS = [
     retweetCount: 3,
     likeCount: 41,
     isLiked: true,
-    isRetweeted: true
-  },
-  {
-    id: "3",
-    name: "Yacine Bélanger",
-    handle: "@yacineb",
-    time: "4 h",
-    avatar: "YB",
-    text: "Le métro avait 12 min de retard, alors j'ai noté trois idées d'app. Une seule est viable. C'est déjà ça.",
-    commentCount: 5,
-    retweetCount: 3,
-    likeCount: 41,
-    isLiked: true,
-    isRetweeted: false
+    isRetweeted: true,
+    comments: []
   }
 ];
 
-// --- PERSISTENCE UTILS HELPER FUNCTIONS ---
-// Looking inside the browser Storage layer to mock database interactions (Fixes point 2.B & 3.C)
 const getStoredTweets = (): any[] => {
   if (typeof window === "undefined") return INITIAL_TWEETS;
   const stored = localStorage.getItem("breezy_mock_db");
@@ -67,11 +67,9 @@ const saveStoredTweets = (tweets: any[]) => {
   }
 };
 
-// --- CLIENT REQUISITION PIPELINES ---
 export const getTweets = async () => {
   try {
-    // Simulating a minor network latency delay for real UI testing
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 150));
     return getStoredTweets();
   } catch (error) {
     console.error("Erreur lors de la récupération des tweets :", error);
@@ -79,27 +77,90 @@ export const getTweets = async () => {
   }
 };
 
-// Mocking the patch/put HTTP calls for likes persistence logic
+export const getTweetById = async (tweetId: string) => {
+  const db = getStoredTweets();
+  const match = db.find((t) => t.id.toString() === tweetId.toString());
+  if (!match) throw new Error("Tweet introuvable");
+  return match;
+};
+
+export const createCommentApi = async (tweetId: string, text: string) => {
+  const db = getStoredTweets();
+  let createdComment: any = null;
+
+  const updatedDb = db.map((tweet) => {
+    if (tweet.id.toString() === tweetId.toString()) {
+      createdComment = {
+        id: Math.floor(Math.random() * 100000).toString(),
+        name: "Camille Roy",
+        handle: "@camille",
+        time: "1 min",
+        avatar: "CR",
+        text: text,
+        commentCount: 0,
+        retweetCount: 0,
+        likeCount: 0,
+        isLiked: false,
+        isRetweeted: false,
+        comments: [] // Prêt pour accueillir des sous-commentaires plus tard
+      };
+      return {
+        ...tweet,
+        commentCount: (tweet.commentCount || 0) + 1,
+        comments: [...(tweet.comments || []), createdComment]
+      };
+    }
+    return tweet;
+  });
+
+  saveStoredTweets(updatedDb);
+  return createdComment;
+};
+
+// Gère le Like à la fois sur le post principal OU à l'intérieur de ses commentaires imbriqués
 export const likeTweetApi = async (tweetId: string, isLiked: boolean, nextCount: number) => {
   const db = getStoredTweets();
-  const updatedDb = db.map((t) => 
-    t.id.toString() === tweetId.toString() ? { ...t, isLiked, likeCount: nextCount } : t
-  );
+  
+  const updatedDb = db.map((t) => {
+    // Si c'est le tweet principal
+    if (t.id.toString() === tweetId.toString()) {
+      return { ...t, isLiked, likeCount: nextCount };
+    }
+    // Sinon on regarde s'il est dans les commentaires du tweet
+    if (t.comments && t.comments.length > 0) {
+      const updatedComments = t.comments.map((c: any) => 
+        c.id.toString() === tweetId.toString() ? { ...c, isLiked, likeCount: nextCount } : c
+      );
+      return { ...t, comments: updatedComments };
+    }
+    return t;
+  });
+
   saveStoredTweets(updatedDb);
 };
 
-// Mocking the patch/put HTTP calls for retweets persistence logic
+// Gère le Retweet à la fois sur le post principal OU à l'intérieur de ses commentaires
 export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nextCount: number) => {
   const db = getStoredTweets();
-  const updatedDb = db.map((t) => 
-    t.id.toString() === tweetId.toString() ? { ...t, isRetweeted, retweetCount: nextCount } : t
-  );
+  
+  const updatedDb = db.map((t) => {
+    if (t.id.toString() === tweetId.toString()) {
+      return { ...t, isRetweeted, retweetCount: nextCount };
+    }
+    if (t.comments && t.comments.length > 0) {
+      const updatedComments = t.comments.map((c: any) => 
+        c.id.toString() === tweetId.toString() ? { ...c, isRetweeted, retweetCount: nextCount } : c
+      );
+      return { ...t, comments: updatedComments };
+    }
+    return t;
+  });
+
   saveStoredTweets(updatedDb);
 };
 
 export const createTweetApi = async (text: string) => {
   const db = getStoredTweets();
-  
   const newTweet = {
     id: Math.floor(Math.random() * 100000).toString(),
     name: "Camille Roy",
@@ -111,18 +172,16 @@ export const createTweetApi = async (text: string) => {
     retweetCount: 0,
     likeCount: 0,
     isLiked: false,
-    isRetweeted: false
+    isRetweeted: false,
+    comments: []
   };
-  
   const updatedDb = [newTweet, ...db];
   saveStoredTweets(updatedDb);
   return newTweet;
 };
 
-// Mocking the delete HTTP call for removing a tweet from localStorage
 export const deleteTweetApi = async (tweetId: string) => {
   const db = getStoredTweets();
-  // Keep all tweets except the one we want to delete
   const updatedDb = db.filter((t) => t.id.toString() !== tweetId.toString());
   saveStoredTweets(updatedDb);
 };
