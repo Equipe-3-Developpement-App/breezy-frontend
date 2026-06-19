@@ -1,9 +1,131 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
+// ===========================================================================
+//  AUTHENTIFICATION — client axios partagé, tokens et appels auth
+// ===========================================================================
+
+// La gateway Nginx expose tous les services sur un seul point d'entrée.
+// En docker-compose, NEXT_PUBLIC_API_URL vaut http://localhost:80 (cf. docker-compose.yml).
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost";
+
+// Les tokens vivent dans des cookies httpOnly posés par l'auth-service : le JS
+// ne peut donc pas les lire (protection XSS). Le navigateur les renvoie tout
+// seul à chaque requête, à condition d'activer withCredentials ci-dessous.
+
+// --- Client axios (point d'entrée gateway) --------------------------------
 const apiClient = axios.create({
-  baseURL: "http://localhost:3000/api",
-  timeout: 5000,
+  baseURL: API_URL,
+  timeout: 8000,
+  withCredentials: true, // indispensable : envoie/reçoit les cookies httpOnly
 });
+
+// Sur 401, tente un refresh une seule fois (le cookie refresh part tout seul)
+// puis rejoue la requête initiale.
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const original = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    const isAuthRoute = original?.url?.includes("/api/auth/");
+
+    if (error.response?.status === 401 && original && !original._retry && !isAuthRoute) {
+      original._retry = true;
+      try {
+        // axios "nu" + withCredentials pour envoyer le cookie refresh sans
+        // re-déclencher cet interceptor en boucle.
+        await axios.post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true });
+        return apiClient(original); // les nouveaux cookies sont déjà posés
+      } catch (refreshErr) {
+        if (typeof window !== "undefined") window.location.href = "/login";
+        return Promise.reject(refreshErr);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Erreur métier destinée à être affichée telle quelle à l'utilisateur.
+export class ApiError extends Error {}
+
+// --- Extraction d'un message d'erreur lisible -----------------------------
+// auth-service : { success:false, error:{ code, message } }
+// user-service : { error: "..." }
+export function getErrorMessage(err: unknown, fallback = "Une erreur est survenue"): string {
+  if (err instanceof ApiError) return err.message;
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as
+      | { error?: { message?: string } | string }
+      | undefined;
+    if (data?.error) {
+      if (typeof data.error === "string") return data.error;
+      if (data.error.message) return data.error.message;
+    }
+    if (err.code === "ECONNABORTED") return "Le serveur met trop de temps à répondre";
+    if (!err.response) return "Impossible de joindre le serveur";
+  }
+  return fallback;
+}
+
+// --- Appels d'authentification --------------------------------------------
+export interface CurrentUser {
+  id: number;
+  email: string;
+  role: string;
+}
+
+export async function loginApi(email: string, password: string): Promise<void> {
+  // L'auth-service pose les cookies httpOnly dans la réponse : rien à stocker côté JS.
+  await apiClient.post("/api/auth/login", { email, password });
+}
+
+// Vérifie la disponibilité d'un pseudo (endpoint public, avant inscription).
+export async function checkUsernameAvailable(username: string): Promise<boolean> {
+  const res = await apiClient.get("/api/users/check-username", { params: { username } });
+  return res.data?.available === true;
+}
+
+// Inscription complète : vérifie le pseudo AVANT toute création (pour ne pas
+// laisser un compte auth orphelin), crée le compte, se connecte (pose le cookie),
+// puis crée le profil. id_auth est dérivé du token par la gateway/user-service.
+export async function registerApi(username: string, email: string, password: string) {
+  // 0. Pré-vérification du pseudo : on échoue avant de créer quoi que ce soit.
+  const available = await checkUsernameAvailable(username);
+  if (!available) {
+    throw new ApiError("Ce nom d'utilisateur est déjà pris");
+  }
+
+  // 1. Création du compte d'authentification.
+  await apiClient.post("/api/auth/register", { email, password });
+
+  // 2. Connexion : pose le cookie httpOnly nécessaire à la route protégée.
+  await loginApi(email, password);
+
+  // 3. Création du profil avec le pseudo (le cookie est envoyé automatiquement).
+  await apiClient.post("/api/users/", { username });
+}
+
+export async function logoutApi() {
+  // L'auth-service efface les cookies httpOnly ; rien à nettoyer côté JS.
+  try {
+    await apiClient.post("/api/auth/logout");
+  } catch {
+    // Même si l'appel échoue (token déjà expiré), on ignore : l'utilisateur est déconnecté.
+  }
+}
+
+// Vérifie la session côté serveur (le cookie n'étant pas lisible en JS).
+// Renvoie l'utilisateur courant, ou null si non authentifié.
+export async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  try {
+    const res = await apiClient.get("/api/auth/validate");
+    return res.data.data as CurrentUser;
+  } catch {
+    return null;
+  }
+}
+
+// ===========================================================================
+//  TWEETS — données simulées (localStorage), à brancher sur /api/posts plus tard
+// ===========================================================================
 
 const INITIAL_TWEETS = [
   {
