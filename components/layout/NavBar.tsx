@@ -19,9 +19,12 @@ export function NavBar({ activePage }: NavBarProps) {
         <Home size={22} strokeWidth={activePage === "home" ? 2.5 : 2} />
       </Link>
       
-      <button type="button" aria-label="Recherche" className="text-breezy-gray hover:text-breezy-blue cursor-pointer hover:scale-110 transition bg-transparent border-none p-0">
-        <Search size={22} strokeWidth={2} />
-      </button>
+      <Link 
+        href="/search" 
+        aria-label="Recherche" 
+        className={`cursor-pointer hover:scale-110 transition flex items-center justify-center ${activePage === "search" ? "text-breezy-blue" : "text-breezy-gray hover:text-breezy-blue"}`}>
+        <Search size={22} strokeWidth={activePage === "search" ? 2.5 : 2} />
+      </Link>
       
       <button type="button" aria-label="Notifications" className="text-breezy-gray hover:text-breezy-blue cursor-pointer hover:scale-110 transition bg-transparent border-none p-0">
         <Bell size={22} strokeWidth={2} />

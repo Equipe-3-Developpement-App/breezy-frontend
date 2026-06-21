@@ -19,39 +19,24 @@ export function TweetList() {
     let isMounted = true;
 
     const fetchTweets = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getTweets();
-        
-        if (isMounted) {
-          const standardTweets: Tweet[] = data.map((t: any) => ({
-            id: t.id.toString(),
-            content: t.text,
-            createdAt: t.time,
-            likeCount: t.likeCount,
-            retweetCount: t.retweetCount,
-            isLiked: !!t.isLiked,
-            isRetweeted: !!t.isRetweeted,
-            user: {
-              id: t.handle,
-              username: t.handle.replace("@", ""),
-              displayName: t.name,
-              avatarUrl: undefined
-            },
-            isFollowing: false
-          }));
-          setTweets(standardTweets);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError("Impossible de charger les messages. Vérifiez votre connexion avec la brise.");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+          try {
+            setLoading(true);
+            setError(null);
+            
+            const data = await getTweets();
+            
+            if (isMounted) {
+              setTweets(data);
+            }
+          } catch (err: any) {
+            if (isMounted) {
+              setError("Impossible de charger les messages. Vérifiez votre connexion.");
+              console.error(err);
+            }
+          } finally {
+            if (isMounted) setLoading(false);
+          }
+        };
 
     fetchTweets();
 
@@ -157,7 +142,7 @@ export function TweetList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-24">
+    <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
       {tweets.map((tweet) => (
         <TweetCard 
           key={tweet.id}

@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FormField } from "./FormField";
+import { useRouter } from "next/navigation";
+import { registerApi, getErrorMessage } from "@/utils/api";
 
 const registerSchema = z.object({
   username: z
@@ -24,6 +26,9 @@ const registerSchema = z.object({
 type RegisterInput = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
+  const router = useRouter();
+  const [serverError, setServerError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -33,16 +38,17 @@ export function RegisterForm() {
   });
 
   const onSubmit = async (data: RegisterInput) => {
+    setServerError(null);
     try {
-      console.log("Registration schema verified payload:", data);
+      await registerApi(data.username, data.email, data.password);
+      router.push("/feed");
     } catch (error) {
-      console.error("Network registration pipeline failure:", error);
+      setServerError(getErrorMessage(error, "La création du compte a échoué"));
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col w-full h-full justify-between flex-1">
-      
       <div className="flex flex-col gap-[30px] w-full">
         <FormField
           id="username"
@@ -73,7 +79,13 @@ export function RegisterForm() {
       </div>
 
       <div className="flex flex-col gap-3 w-full items-center mt-6">
-        <button 
+        {serverError && (
+          <p className="text-[14px] text-red-500 text-center w-full" role="alert">
+            {serverError}
+          </p>
+        )}
+
+        <button
           type="submit"
           disabled={isSubmitting}
           className="w-full h-[47.19px] bg-[#2A6FDB] hover:bg-[#1e52a4] text-white font-bold text-[16px] rounded-full flex items-center justify-center cursor-pointer active:scale-98 transition-all select-none border-none disabled:opacity-50"
@@ -90,7 +102,6 @@ export function RegisterForm() {
           </p>
         </div>
       </div>
-
     </form>
   );
 }

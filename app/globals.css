@@ -9,3 +9,16 @@
   --color-breezy-bg-light: #EEF4FA;
   --color-breezy-border-light: #E2EAF2;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  /* hide scrollbar for WebKit/Blink-based browsers */
+  display: none; /* older behavior */
+  width: 0; /* fallback for browsers that don't honor display:none */
+  height: 0;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* Firefox */
+  scrollbar-width: none;
+  /* For browsers that don't support scrollbar-width (Chrome <121, Safari, iOS Safari, Samsung Internet)*/
+}

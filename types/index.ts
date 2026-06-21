@@ -10,6 +10,7 @@ export interface User {
 export interface Tweet {
   id: string;
   content: string;
+  media?: string | null;
   createdAt: string;
   user: User;
   likeCount: number;

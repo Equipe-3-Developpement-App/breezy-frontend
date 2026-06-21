@@ -18,6 +18,15 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
   // Guard check to isolate the current session identity
   const isOwnTweet = tweet.user.displayName === "Camille Roy";
 
+  const renderContentWithHashtags = (text: string) => {
+      return text.split(/(#[a-zA-Z0-9_À-ÿ]+)/g).map((part, index) => {
+        if (part.startsWith("#")) {
+          return <span key={index} className="text-breezy-blue">{part}</span>;
+        }
+        return <span key={index}>{part}</span>;
+      });
+    };
+
   return (
     <div className="flex p-4 bg-breezy-bgLight border-b border-breezy-border-light w-full text-left">
 
@@ -50,9 +59,15 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
           )}
         </div>
 
-        <p className="text-[14.5px] text-breezy-dark leading-[22px] whitespace-pre-line">
-          {tweet.content}
+        <p className="text-[14.5px] text-breezy-dark leading-[22px] whitespace-pre-wrap break-words">
+          {renderContentWithHashtags(tweet.content)}
         </p>
+
+        {tweet.media && (
+          <div className="mt-2.5 rounded-2xl overflow-hidden border border-breezy-border-light max-h-[350px] bg-black">
+            <img src={tweet.media} alt="Média joint" className="w-full h-full object-cover" />
+          </div>
+        )}
 
         <div className="flex justify-between items-center text-breezy-gray text-[13px] font-medium max-w-[280px] mt-1 w-full">
 

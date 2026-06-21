@@ -1,187 +1,175 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import { Tweet } from "@/types";
+
+// ===========================================================================
+//  AUTHENTIFICATION — client axios partagé, tokens et appels auth
+// ===========================================================================
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:80";
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:3000/api",
-  timeout: 5000,
+  baseURL: API_URL,
+  timeout: 8000,
+  withCredentials: true,
 });
 
-const INITIAL_TWEETS = [
-  {
-    id: "1",
-    name: "Camille Roy",
-    handle: "@camille",
-    time: "2 h",
-    avatar: "CR",
-    text: "Petit rappel du matin : un bon espacement vaut mille décorations. Je repars peaufiner mes marges ✨",
-    commentCount: 12,
-    retweetCount: 8,
-    likeCount: 64,
-    isLiked: false,
-    isRetweeted: false,
-    comments: [
-      {
-        id: "c1",
-        name: "Yacine Bélanger",
-        handle: "@yacineb",
-        time: "1 h",
-        avatar: "YB",
-        text: "Totalement d'accord, l'espace blanc est un ingrédient à part entière !",
-        commentCount: 0,
-        retweetCount: 2,
-        likeCount: 4,
-        isLiked: false,
-        isRetweeted: false,
-        comments: []
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const original = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    const isAuthRoute = original?.url?.includes("/api/auth/");
+
+    if (error.response?.status === 401 && original && !original._retry && !isAuthRoute) {
+      original._retry = true;
+      try {
+        await axios.post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true });
+        return apiClient(original);
+      } catch (refreshErr) {
+        if (typeof window !== "undefined") window.location.href = "/login";
+        return Promise.reject(refreshErr);
       }
-    ]
-  },
-  {
-    id: "2",
-    name: "Yacine Bélanger",
-    handle: "@yacineb",
-    time: "4 h",
-    avatar: "YB",
-    text: "Le métro avait 12 min de retard, alors j'ai noté trois idées d'app. Une seule est viable. C'est déjà ça.",
-    commentCount: 5,
-    retweetCount: 3,
-    likeCount: 41,
-    isLiked: true,
-    isRetweeted: true,
-    comments: []
+    }
+    return Promise.reject(error);
   }
-];
+);
 
-const getStoredTweets = (): any[] => {
-  if (typeof window === "undefined") return INITIAL_TWEETS;
-  const stored = localStorage.getItem("breezy_mock_db");
-  if (!stored) {
-    localStorage.setItem("breezy_mock_db", JSON.stringify(INITIAL_TWEETS));
-    return INITIAL_TWEETS;
+export class ApiError extends Error {}
+
+export function getErrorMessage(err: unknown, fallback = "Une erreur est survenue"): string {
+  if (err instanceof ApiError) return err.message;
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: { message?: string } | string } | undefined;
+    if (data?.error) {
+      if (typeof data.error === "string") return data.error;
+      if (data.error.message) return data.error.message;
+    }
+    if (err.code === "ECONNABORTED") return "Le serveur met trop de temps à répondre";
+    if (!err.response) return "Impossible de joindre le serveur";
   }
-  return JSON.parse(stored);
-};
+  return fallback;
+}
 
-const saveStoredTweets = (tweets: any[]) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("breezy_mock_db", JSON.stringify(tweets));
-  }
-};
+export interface CurrentUser {
+  id: number;
+  email: string;
+  role: string;
+}
 
-export const getTweets = async () => {
+export async function loginApi(email: string, password: string): Promise<void> {
+  await apiClient.post("/api/auth/login", { email, password });
+}
+
+export async function checkUsernameAvailable(username: string): Promise<boolean> {
+  const res = await apiClient.get("/api/users/check-username", { params: { username } });
+  return res.data?.available === true;
+}
+
+export async function registerApi(username: string, email: string, password: string) {
+  const available = await checkUsernameAvailable(username);
+  if (!available) throw new ApiError("Ce nom d'utilisateur est déjà pris");
+  await apiClient.post("/api/auth/register", { email, password });
+  await loginApi(email, password);
+  await apiClient.post("/api/users/", { username });
+}
+
+export async function logoutApi() {
   try {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    return getStoredTweets();
-  } catch (error) {
-    console.error("Erreur lors de la récupération des tweets :", error);
-    throw error;
+    await apiClient.post("/api/auth/logout");
+  } catch {}
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  try {
+    const res = await apiClient.get("/api/auth/validate");
+    return res.data.data as CurrentUser;
+  } catch {
+    return null;
   }
+}
+
+// ===========================================================================
+//  POSTS, MEDIAS & TAGS — Connexion réelle aux microservices
+// ===========================================================================
+
+const mapPostToTweet = (post: any): Tweet => ({
+  id: post._id,
+  content: post.content,
+  media: post.media || null,
+  createdAt: new Date(post.post_at).toLocaleString("fr-FR"),
+  likeCount: post.likes_count || 0,
+  retweetCount: 0,
+  isLiked: false, 
+  isRetweeted: false,
+  user: {
+    id: post.id_author,
+    username: `user_${post.id_author}`,
+    displayName: `Utilisateur ${post.id_author}`,
+  },
+});
+
+export const getTweets = async (): Promise<Tweet[]> => {
+  // Par défaut, on demande le feed (attention, si on n'est abonné à personne, ce sera vide !)
+  // Si tu veux toujours forcer le profil 100 pour tes tests : "/api/posts/profile/100"
+  const response = await apiClient.get("/api/posts/feed");
+  return (response.data.posts || []).map(mapPostToTweet);
 };
 
-export const getTweetById = async (tweetId: string) => {
-  const db = getStoredTweets();
-  const match = db.find((t) => t.id.toString() === tweetId.toString());
-  if (!match) throw new Error("Tweet introuvable");
-  return match;
+export const createTweetApi = async (text: string, mediaUrl?: string | null): Promise<Tweet> => {
+  // Extraction des tags à la volée avant l'envoi
+  const tags = text.match(/#[a-zA-Z0-9_À-ÿ]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
+  
+  const response = await apiClient.post("/api/posts/create", { 
+    content: text, 
+    media: mediaUrl,
+    tag: tags 
+  });
+  return mapPostToTweet(response.data.post);
+};
+
+export const uploadMediaApi = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("type", "post");
+
+  const response = await apiClient.post("/api/media/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data.data;
+};
+
+export const likeTweetApi = async (tweetId: string, isLiked: boolean, nextCount: number) => {
+  await apiClient.post(`/api/posts/${tweetId}/like`);
 };
 
 export const createCommentApi = async (tweetId: string, text: string) => {
-  const db = getStoredTweets();
-  let createdComment: any = null;
-
-  const updatedDb = db.map((tweet) => {
-    if (tweet.id.toString() === tweetId.toString()) {
-      createdComment = {
-        id: Math.floor(Math.random() * 100000).toString(),
-        name: "Camille Roy",
-        handle: "@camille",
-        time: "1 min",
-        avatar: "CR",
-        text: text,
-        commentCount: 0,
-        retweetCount: 0,
-        likeCount: 0,
-        isLiked: false,
-        isRetweeted: false,
-        comments: [] // Prêt pour accueillir des sous-commentaires plus tard
-      };
-      return {
-        ...tweet,
-        commentCount: (tweet.commentCount || 0) + 1,
-        comments: [...(tweet.comments || []), createdComment]
-      };
-    }
-    return tweet;
-  });
-
-  saveStoredTweets(updatedDb);
-  return createdComment;
+  const response = await apiClient.post(`/api/posts/${tweetId}/reply`, { content: text });
+  return mapPostToTweet(response.data.reply);
 };
 
-// Gère le Like à la fois sur le post principal OU à l'intérieur de ses commentaires imbriqués
-export const likeTweetApi = async (tweetId: string, isLiked: boolean, nextCount: number) => {
-  const db = getStoredTweets();
-  
-  const updatedDb = db.map((t) => {
-    // Si c'est le tweet principal
-    if (t.id.toString() === tweetId.toString()) {
-      return { ...t, isLiked, likeCount: nextCount };
-    }
-    // Sinon on regarde s'il est dans les commentaires du tweet
-    if (t.comments && t.comments.length > 0) {
-      const updatedComments = t.comments.map((c: any) => 
-        c.id.toString() === tweetId.toString() ? { ...c, isLiked, likeCount: nextCount } : c
-      );
-      return { ...t, comments: updatedComments };
-    }
-    return t;
-  });
-
-  saveStoredTweets(updatedDb);
+export const searchTweetsByTag = async (query: string): Promise<Tweet[]> => {
+  if (!query.trim()) return [];
+  // Si le backend n'a pas encore de route de recherche officielle, 
+  // on filtre localement le feed comme tu l'avais fait précédemment :
+  const allTweets = await getTweets(); 
+  const searchTerm = query.startsWith('#') ? query.toLowerCase() : `#${query.toLowerCase()}`;
+  return allTweets.filter(t => t.content.toLowerCase().includes(searchTerm));
 };
 
-// Gère le Retweet à la fois sur le post principal OU à l'intérieur de ses commentaires
-export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nextCount: number) => {
-  const db = getStoredTweets();
-  
-  const updatedDb = db.map((t) => {
-    if (t.id.toString() === tweetId.toString()) {
-      return { ...t, isRetweeted, retweetCount: nextCount };
-    }
-    if (t.comments && t.comments.length > 0) {
-      const updatedComments = t.comments.map((c: any) => 
-        c.id.toString() === tweetId.toString() ? { ...c, isRetweeted, retweetCount: nextCount } : c
-      );
-      return { ...t, comments: updatedComments };
-    }
-    return t;
-  });
-
-  saveStoredTweets(updatedDb);
-};
-
-export const createTweetApi = async (text: string) => {
-  const db = getStoredTweets();
-  const newTweet = {
-    id: Math.floor(Math.random() * 100000).toString(),
-    name: "Camille Roy",
-    handle: "@camille",
-    time: "1 min",
-    avatar: "CR",
-    text: text,
-    commentCount: 0,
-    retweetCount: 0,
-    likeCount: 0,
-    isLiked: false,
-    isRetweeted: false,
+export const getTweetById = async (tweetId: string) => {
+  return {
+    id: tweetId,
+    content: "Route GET /api/posts/:id manquante dans le backend.",
+    createdAt: "Maintenant",
+    likeCount: 0, retweetCount: 0, isLiked: false, isRetweeted: false,
+    user: { id: "1", username: "admin", displayName: "Admin" },
     comments: []
   };
-  const updatedDb = [newTweet, ...db];
-  saveStoredTweets(updatedDb);
-  return newTweet;
+};
+
+export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nextCount: number) => {
+  console.warn(`Simulation du retweet pour ${tweetId}`);
 };
 
 export const deleteTweetApi = async (tweetId: string) => {
-  const db = getStoredTweets();
-  const updatedDb = db.filter((t) => t.id.toString() !== tweetId.toString());
-  saveStoredTweets(updatedDb);
+  console.warn(`Simulation de la suppression pour ${tweetId}`);
 };

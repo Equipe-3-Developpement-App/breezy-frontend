@@ -132,7 +132,7 @@ export default function CommentPage() {
         </header>
 
         {/* Scroll Zone - Fixed boundary padding to avoid corner shadows clipping */}
-        <div className="flex-1 w-full overflow-y-auto pb-[180px] flex flex-col">
+        <div className="flex-1 w-full overflow-y-auto pb-[180px] flex flex-col no-scrollbar">
           
           {/* Parent Isolated Card */}
           <div className="flex p-4 bg-breezy-bgLight border-b border-breezy-border-light text-left w-full shrink-0">

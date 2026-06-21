@@ -139,7 +139,7 @@ export function ProfileContainer() {
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto pb-[68px]">
+      <div className="flex-1 overflow-y-auto pb-[68px] no-scrollbar">
         
         <div className="flex justify-between items-end px-5 pt-[35px] pb-4 w-full bg-transparent">
           <div className="w-[84px] h-[84px] shrink-0 rounded-full bg-gradient-to-br from-[#5194D6] to-[#2A2FC0] flex items-center justify-center font-bold text-white text-[33.6px] shadow-[0_0_0_4px_#FFFFFF]">
@@ -158,8 +158,7 @@ export function ProfileContainer() {
 
             <button 
               type="button"
-              className="w-[138px] h-[40px] border border-breezy-border bg-white hover:bg-gray-50 text-breezy-dark font-semibold text-[15px] rounded-full flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 select-none"
-            >
+              className="w-[140px] h-[36px] border border-[#CDD9E6] bg-white hover:bg-gray-50 text-breezy-dark font-bold text-[14px] rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-95 select-none">
               <span>Modifier le profil</span>
             </button>
           </div>

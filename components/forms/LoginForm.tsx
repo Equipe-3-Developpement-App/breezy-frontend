@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FormField } from "./FormField";
-import { useRouter } from "next/navigation"; // Hook imported for programmatic routing
+import { useRouter } from "next/navigation";
+import { loginApi, getErrorMessage } from "@/utils/api";
 
 const loginSchema = z.object({
   email: z
@@ -21,7 +22,8 @@ const loginSchema = z.object({
 type LoginInput = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const router = useRouter(); // Initializing the router instance
+  const router = useRouter();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
@@ -32,22 +34,17 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: LoginInput) => {
+    setServerError(null);
     try {
-      console.log("Captured secure form payload:", data);
-      
-      // Simulating a brief network validation delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      // Redirecting directly to the dedicated secure feed url path
+      await loginApi(data.email, data.password);
       router.push("/feed");
     } catch (error) {
-      console.error("Form handling network error:", error);
+      setServerError(getErrorMessage(error, "Identifiants invalides"));
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col w-full h-full justify-between flex-1">
-      
       <div className="flex flex-col items-start gap-[30px] w-full flex-1">
         <FormField
           id="email"
@@ -69,8 +66,14 @@ export function LoginForm() {
       </div>
 
       <footer className="flex flex-col items-center gap-3 w-full">
-        <button 
-          type="submit" 
+        {serverError && (
+          <p className="text-[14px] text-red-500 text-center w-full" role="alert">
+            {serverError}
+          </p>
+        )}
+
+        <button
+          type="submit"
           disabled={isSubmitting}
           className="flex justify-center items-center w-full h-[47.19px] bg-breezy-blue hover:bg-breezy-darkBlue text-white font-bold text-[16px] rounded-full tracking-[-0.16px] transition-all active:scale-[0.98] cursor-pointer border-none disabled:opacity-50"
         >
@@ -86,7 +89,6 @@ export function LoginForm() {
           </p>
         </div>
       </footer>
-
     </form>
   );
 }
