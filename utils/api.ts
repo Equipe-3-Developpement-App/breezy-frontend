@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
-import { Tweet } from "@/types";
+import { Tweet, User } from "@/types";
+
 
 // ===========================================================================
 //  AUTHENTIFICATION — client axios partagé, tokens et appels auth
@@ -174,4 +175,25 @@ export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nex
 
 export const deleteTweetApi = async (tweetId: string) => {
   console.warn(`Simulation de la suppression pour ${tweetId}`);
+};
+
+
+export const searchUsersApi = async (query: string): Promise<User[]> => {
+  if (!query.trim()) return [];
+  const response = await apiClient.get("/api/users/search", { params: { q: query } });
+  
+  return response.data.map((u: any) => ({
+    id: u.id_auth.toString(),
+    username: u.username,
+    displayName: u.username,
+    avatarUrl: u.avatar_url,
+  }));
+};
+
+export const toggleFollowApi = async (userId: string, isFollowing: boolean) => {
+  if (isFollowing) {
+    await apiClient.delete(`/api/users/follow/${userId}`);
+  } else {
+    await apiClient.post("/api/users/follow", { id_followee: userId });
+  }
 };
