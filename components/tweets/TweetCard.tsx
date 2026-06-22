@@ -19,13 +19,13 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
   const isOwnTweet = tweet.user.displayName === "Camille Roy";
 
   const renderContentWithHashtags = (text: string) => {
-      return text.split(/(#[a-zA-Z0-9_À-ÿ]+)/g).map((part, index) => {
-        if (part.startsWith("#")) {
-          return <span key={index} className="text-breezy-blue">{part}</span>;
-        }
-        return <span key={index}>{part}</span>;
-      });
-    };
+    return text.split(/(#[a-zA-Z0-9_À-ÿ]+)/g).map((part, index) => {
+      if (part.startsWith("#")) {
+        return <span key={index} className="text-breezy-blue">{part}</span>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   return (
     <div className="flex p-4 bg-breezy-bgLight border-b border-breezy-border-light w-full text-left">
@@ -62,6 +62,22 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete }: Twee
         <p className="text-[14.5px] text-breezy-dark leading-[22px] whitespace-pre-wrap break-words">
           {renderContentWithHashtags(tweet.content)}
         </p>
+
+        {/* Tags Fx12 — badges cliquables issus du backend */}
+        {tweet.tags && tweet.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {tweet.tags.map((tag) => (
+              <Link
+                key={tag}
+                href={`/search?tag=${encodeURIComponent(tag)}`}
+                className="text-breezy-blue text-[12.5px] font-semibold hover:underline cursor-pointer bg-blue-50 px-2 py-0.5 rounded-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                #{tag}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {tweet.media && (
           <div className="mt-2.5 rounded-2xl overflow-hidden border border-breezy-border-light max-h-[350px] bg-black">

@@ -100,6 +100,7 @@ const mapPostToTweet = (post: any): Tweet => ({
   retweetCount: 0,
   isLiked: false, 
   isRetweeted: false,
+  tags: post.tag || [],
   user: {
     id: post.id_author,
     username: `user_${post.id_author}`,
@@ -148,11 +149,12 @@ export const createCommentApi = async (tweetId: string, text: string) => {
 
 export const searchTweetsByTag = async (query: string): Promise<Tweet[]> => {
   if (!query.trim()) return [];
-  // Si le backend n'a pas encore de route de recherche officielle, 
-  // on filtre localement le feed comme tu l'avais fait précédemment :
-  const allTweets = await getTweets(); 
-  const searchTerm = query.startsWith('#') ? query.toLowerCase() : `#${query.toLowerCase()}`;
-  return allTweets.filter(t => t.content.toLowerCase().includes(searchTerm));
+  const tag = query.startsWith("#") ? query.slice(1).toLowerCase() : query.toLowerCase();
+  const response = await apiClient.get("/api/posts/search", { params: { tag } });
+  return (response.data.posts || []).map((post: any) => ({
+    ...mapPostToTweet(post),
+    tags: post.tag || [],
+  }));
 };
 
 export const getTweetById = async (tweetId: string) => {
