@@ -4,117 +4,120 @@ import React, { useState, useEffect } from "react";
 import { TweetCard } from "./TweetCard";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { Tweet } from "@/types";
-import { getTweets, deleteTweetApi } from "@/utils/api";
+import { getTweets, deleteTweetApi, getCurrentUserProfile, UserProfile } from "@/utils/api";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 export function TweetList() {
   const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Track targeted post selected for mobile confirmation prompt inside feed stream
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchTweets = async () => {
-          try {
-            setLoading(true);
-            setError(null);
-            
-            const data = await getTweets();
-            
-            if (isMounted) {
-              setTweets(data);
-            }
-          } catch (err: any) {
-            if (isMounted) {
-              setError("Impossible de charger les messages. Vérifiez votre connexion.");
-              console.error(err);
-            }
-          } finally {
-            if (isMounted) setLoading(false);
-          }
-        };
-
-    fetchTweets();
-
-    return () => {
-      isMounted = false;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // On récupère ton profil et le feed en même temps
+        const [user, data] = await Promise.all([
+          getCurrentUserProfile(),
+          getTweets()
+        ]);
+        
+        if (isMounted) {
+          setCurrentUser(user);
+          
+          // FILTRE MAGIQUE : On ne garde QUE les posts qui n'ont pas ton ID
+          const filteredTweets = data.filter(t => t.user.id !== user?.id_auth?.toString());
+          setTweets(filteredTweets);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError("Impossible de charger les messages. Vérifiez votre connexion.");
+          console.error(err);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     };
+
+    fetchData();
+
+    return () => { isMounted = false; };
   }, []);
 
   const handleLikeToggle = async (tweetId: string) => {
     let updatedIsLiked = false;
     let updatedCount = 0;
-
-    setTweets((currentTweets) =>
-      currentTweets.map((tweet) => {
-        if (tweet.id === tweetId) {
-          updatedIsLiked = !tweet.isLiked;
-          updatedCount = updatedIsLiked ? tweet.likeCount + 1 : tweet.likeCount - 1;
-          return { ...tweet, isLiked: updatedIsLiked, likeCount: updatedCount };
-        }
-        return tweet;
-      })
-    );
-
+    setTweets((currentTweets) => currentTweets.map((tweet) => {
+      if (tweet.id === tweetId) {
+        updatedIsLiked = !tweet.isLiked;
+        updatedCount = updatedIsLiked ? tweet.likeCount + 1 : Math.max(0, tweet.likeCount - 1);
+        return { ...tweet, isLiked: updatedIsLiked, likeCount: updatedCount };
+      }
+      return tweet;
+    }));
     try {
-      await (await import("@/utils/api")).likeTweetApi(tweetId, updatedIsLiked, updatedCount);
-    } catch (err) {
-      console.error("Failed to sync like action with storage:", err);
-    }
+      const { likeTweetApi } = await import("@/utils/api");
+      await likeTweetApi(tweetId, updatedIsLiked, updatedCount);
+    } catch (err) { console.error(err); }
   };
 
   const handleRetweetToggle = async (tweetId: string) => {
     let updatedIsRetweeted = false;
     let updatedCount = 0;
+    setTweets((currentTweets) => currentTweets.map((tweet) => {
+      if (tweet.id === tweetId) {
+        updatedIsRetweeted = !tweet.isRetweeted;
+        updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : Math.max(0, tweet.retweetCount - 1);
+        return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
+      }
+      return tweet;
+    }));
+    try {
+      const { retweetTweetApi } = await import("@/utils/api");
+      await retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
+    } catch (err) { console.error(err); }
+  };
 
-    setTweets((currentTweets) =>
-      currentTweets.map((tweet) => {
-        if (tweet.id === tweetId) {
-          updatedIsRetweeted = !tweet.isRetweeted;
-          updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : tweet.retweetCount - 1;
-          return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
-        }
-        return tweet;
-      })
-    );
+const handleFollowToggle = async (userId: string) => {
+    const target = tweets.find(t => t.user.id === userId);
+    if (!target) return;
+    const isCurrentlyFollowing = target.isFollowing;
+
+    setTweets((current) => current.map((tweet) => {
+      if (tweet.user.id === userId) return { ...tweet, isFollowing: !isCurrentlyFollowing };
+      return tweet;
+    }));
 
     try {
-      await (await import("@/utils/api")).retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
+      const { followUserApi, unfollowUserApi } = await import("@/utils/api");
+      if (isCurrentlyFollowing) {
+        await unfollowUserApi(userId);
+      } else {
+        await followUserApi(userId);
+      }
     } catch (err) {
-      console.error("Failed to sync retweet action with storage:", err);
+      setTweets((current) => current.map((tweet) => {
+        if (tweet.user.id === userId) return { ...tweet, isFollowing: isCurrentlyFollowing };
+        return tweet;
+      }));
     }
   };
 
-  const handleFollowToggle = (userId: string) => {
-    setTweets((currentTweets) =>
-      currentTweets.map((tweet) => {
-        if (tweet.user.id === userId) {
-          return { ...tweet, isFollowing: !tweet.isFollowing };
-        }
-        return tweet;
-      })
-    );
-  };
-
-  const openDeleteConfirmation = (tweetId: string) => {
-    setTweetToDelete(tweetId);
-  };
+  const openDeleteConfirmation = (tweetId: string) => setTweetToDelete(tweetId);
 
   const handleConfirmDelete = async () => {
     if (!tweetToDelete) return;
-
     try {
       setTweets((currentTweets) => currentTweets.filter((tweet) => tweet.id !== tweetToDelete));
       await deleteTweetApi(tweetToDelete);
-    } catch (err) {
-      console.error("Failed to delete tweet item pipeline sync:", err);
-    } finally {
-      setTweetToDelete(null);
-    }
+    } catch (err) { console.error(err); } finally { setTweetToDelete(null); }
   };
 
   if (loading) {
@@ -131,12 +134,7 @@ export function TweetList() {
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-breezy-gray gap-4">
         <AlertCircle size={40} className="text-red-500" />
         <p className="text-[15px] font-semibold text-breezy-dark">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-breezy-blue text-white text-[13.5px] font-bold rounded-full hover:bg-breezy-darkBlue transition"
-        >
-          Réessayer
-        </button>
+        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-breezy-blue text-white text-[13.5px] font-bold rounded-full hover:bg-breezy-darkBlue transition">Réessayer</button>
       </div>
     );
   }
@@ -151,18 +149,11 @@ export function TweetList() {
           onRetweet={handleRetweetToggle}
           onFollow={handleFollowToggle}
           onDelete={openDeleteConfirmation}
+          isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id} 
         />
       ))}
 
-      <ConfirmationModal
-        isOpen={tweetToDelete !== null}
-        title="Supprimer le message ?"
-        message="Cette action est irréversible. Le message sera définitivement retiré du flux."
-        confirmLabel="Supprimer"
-        cancelLabel="Annuler"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setTweetToDelete(null)}
-      />
+      <ConfirmationModal isOpen={tweetToDelete !== null} title="Supprimer le message ?" message="Cette action est irréversible. Le message sera définitivement retiré du flux." confirmLabel="Supprimer" cancelLabel="Annuler" onConfirm={handleConfirmDelete} onCancel={() => setTweetToDelete(null)} />
     </div>
   );
 }

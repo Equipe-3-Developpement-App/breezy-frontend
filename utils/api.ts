@@ -1,7 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { Tweet, User } from "@/types";
 
-
 // ===========================================================================
 //  AUTHENTIFICATION — client axios partagé, tokens et appels auth
 // ===========================================================================
@@ -89,50 +88,154 @@ export async function fetchCurrentUser(): Promise<CurrentUser | null> {
 }
 
 // ===========================================================================
-//  POSTS, MEDIAS & TAGS — Connexion réelle aux microservices
+//  PROFIL UTILISATEUR & ABONNEMENTS
 // ===========================================================================
 
-const mapPostToTweet = (post: any): Tweet => ({
-  id: post._id,
-  content: post.content,
-  media: post.media || null,
-  createdAt: new Date(post.post_at).toLocaleString("fr-FR"),
-  likeCount: post.likes_count || 0,
-  retweetCount: 0,
-  isLiked: false, 
-  isRetweeted: false,
-  tags: post.tag || [],
-  user: {
-    id: post.id_author,
-    username: `user_${post.id_author}`,
-    displayName: `Utilisateur ${post.id_author}`,
-  },
-});
+export interface UserProfile {
+  id_user: number;
+  id_auth: number;
+  username: string;
+  bio: string;
+  avatar_url: string;
+  created_at: string;
+}
+
+export const getAllUsers = async (): Promise<UserProfile[]> => {
+  try {
+    const res = await apiClient.get("/api/users");
+    return res.data;
+  } catch { return []; }
+};
+
+export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
+  const authUser = await fetchCurrentUser();
+  if (!authUser) return null;
+  try {
+    const res = await apiClient.get(`/api/users/by-auth/${authUser.id}`);
+    return res.data;
+  } catch { return null; }
+};
+
+export const getUserFollowStats = async (userId: string | number) => {
+  try {
+    const [following, followers] = await Promise.all([
+      apiClient.get(`/api/users/${userId}/following`).catch(() => ({ data: [] })),
+      apiClient.get(`/api/users/${userId}/followers`).catch(() => ({ data: [] }))
+    ]);
+    return {
+      followingCount: following.data.length || 0,
+      followersCount: followers.data.length || 0
+    };
+  } catch { return { followingCount: 0, followersCount: 0 }; }
+};
+
+export const updateUserProfile = async (bio: string, avatar_url?: string) => {
+  const res = await apiClient.patch("/api/users/me", { bio, avatar_url });
+  return res.data;
+};
+
+export const getFollowingIds = async (userId: string | number): Promise<string[]> => {
+  try {
+    const res = await apiClient.get(`/api/users/${userId}/following/ids`);
+    return (res.data.following_ids || []).map(String);
+  } catch { return []; }
+};
+
+// Fonctions d'abonnement (unifiées)
+export const followUserApi = async (userId: string) => {
+  await apiClient.post("/api/users/follow", { id_followee: userId });
+};
+
+export const unfollowUserApi = async (userId: string) => {
+  await apiClient.delete(`/api/users/follow/${userId}`);
+};
+
+export const toggleFollowApi = async (userId: string, isFollowing: boolean) => {
+  if (isFollowing) {
+    await apiClient.delete(`/api/users/follow/${userId}`);
+  } else {
+    await apiClient.post("/api/users/follow", { id_followee: userId });
+  }
+};
+
+export const searchUsersApi = async (query: string): Promise<User[]> => {
+  if (!query.trim()) return [];
+  const response = await apiClient.get("/api/users/search", { params: { q: query } });
+  
+  return response.data.map((u: any) => ({
+    id: u.id_auth.toString(),
+    username: u.username,
+    avatarUrl: u.avatar_url || undefined,
+  }));
+};
+
+// ===========================================================================
+//  POSTS, MEDIAS & TAGS
+// ===========================================================================
+
+export const hydrateTweets = async (posts: any[]): Promise<Tweet[]> => {
+  if (!posts || posts.length === 0) return [];
+  
+  const [users, currentUser] = await Promise.all([
+    getAllUsers(),
+    fetchCurrentUser()
+  ]);
+  
+  let myFollowingIds: string[] = [];
+  if (currentUser) {
+    myFollowingIds = await getFollowingIds(currentUser.id);
+  }
+  
+  const userMap = new Map<string, UserProfile>();
+  users.forEach(u => userMap.set(u.id_auth.toString(), u));
+
+  return posts.map(post => {
+    const authorIdStr = post.id_author?.toString();
+    const author = userMap.get(authorIdStr);
+    return {
+      id: post._id,
+      content: post.content,
+      media: post.media || null,
+      createdAt: new Date(post.post_at).toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", year: "numeric", 
+        hour: "2-digit", minute: "2-digit"
+      }),
+      likeCount: post.likes_count || 0,
+      retweetCount: 0,
+      isLiked: post.isLiked === true, 
+      isRetweeted: false,
+      isFollowing: myFollowingIds.includes(authorIdStr),
+      tags: post.tag || [],
+      user: {
+        id: authorIdStr,
+        username: author ? author.username : `user_${post.id_author}`,
+        avatarUrl: author?.avatar_url || undefined,
+      },
+    };
+  });
+};
 
 export const getTweets = async (): Promise<Tweet[]> => {
-  // Par défaut, on demande le feed (attention, si on n'est abonné à personne, ce sera vide !)
-  // Si tu veux toujours forcer le profil 100 pour tes tests : "/api/posts/profile/100"
   const response = await apiClient.get("/api/posts/feed");
-  return (response.data.posts || []).map(mapPostToTweet);
+  return hydrateTweets(response.data.posts || []);
+};
+
+export const getUserPosts = async (userId: string | number): Promise<Tweet[]> => {
+  const response = await apiClient.get(`/api/posts/profile/${userId}`);
+  return hydrateTweets(response.data || []);
 };
 
 export const createTweetApi = async (text: string, mediaUrl?: string | null): Promise<Tweet> => {
-  // Extraction des tags à la volée avant l'envoi
   const tags = text.match(/#[a-zA-Z0-9_À-ÿ]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
-  
-  const response = await apiClient.post("/api/posts/create", { 
-    content: text, 
-    media: mediaUrl,
-    tag: tags 
-  });
-  return mapPostToTweet(response.data.post);
+  const response = await apiClient.post("/api/posts/create", { content: text, media: mediaUrl, tag: tags });
+  const [hydrated] = await hydrateTweets([response.data.post]);
+  return hydrated;
 };
 
 export const uploadMediaApi = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("type", "post");
-
   const response = await apiClient.post("/api/media/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -145,17 +248,15 @@ export const likeTweetApi = async (tweetId: string, isLiked: boolean, nextCount:
 
 export const createCommentApi = async (tweetId: string, text: string) => {
   const response = await apiClient.post(`/api/posts/${tweetId}/reply`, { content: text });
-  return mapPostToTweet(response.data.reply);
+  const [hydrated] = await hydrateTweets([response.data.reply]);
+  return hydrated;
 };
 
 export const searchTweetsByTag = async (query: string): Promise<Tweet[]> => {
   if (!query.trim()) return [];
   const tag = query.startsWith("#") ? query.slice(1).toLowerCase() : query.toLowerCase();
   const response = await apiClient.get("/api/posts/search", { params: { tag } });
-  return (response.data.posts || []).map((post: any) => ({
-    ...mapPostToTweet(post),
-    tags: post.tag || [],
-  }));
+  return hydrateTweets(response.data.posts || []);
 };
 
 export const getTweetById = async (tweetId: string) => {
@@ -164,7 +265,7 @@ export const getTweetById = async (tweetId: string) => {
     content: "Route GET /api/posts/:id manquante dans le backend.",
     createdAt: "Maintenant",
     likeCount: 0, retweetCount: 0, isLiked: false, isRetweeted: false,
-    user: { id: "1", username: "admin", displayName: "Admin" },
+    user: { id: "1", username: "admin"},
     comments: []
   };
 };
@@ -174,26 +275,5 @@ export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nex
 };
 
 export const deleteTweetApi = async (tweetId: string) => {
-  console.warn(`Simulation de la suppression pour ${tweetId}`);
-};
-
-
-export const searchUsersApi = async (query: string): Promise<User[]> => {
-  if (!query.trim()) return [];
-  const response = await apiClient.get("/api/users/search", { params: { q: query } });
-  
-  return response.data.map((u: any) => ({
-    id: u.id_auth.toString(),
-    username: u.username,
-    displayName: u.username,
-    avatarUrl: u.avatar_url,
-  }));
-};
-
-export const toggleFollowApi = async (userId: string, isFollowing: boolean) => {
-  if (isFollowing) {
-    await apiClient.delete(`/api/users/follow/${userId}`);
-  } else {
-    await apiClient.post("/api/users/follow", { id_followee: userId });
-  }
+  await apiClient.delete(`/api/posts/${tweetId}`);
 };

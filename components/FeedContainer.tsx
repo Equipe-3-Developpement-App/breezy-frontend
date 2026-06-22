@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TweetList } from "./tweets/TweetList";
 import { NavBar } from "./layout/NavBar";
 import { ComposeModal } from "./modals/ComposeModal";
 import { Search, Wind } from "lucide-react";
+import { getCurrentUserProfile, UserProfile } from "@/utils/api";
 
 export function FeedContainer() {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    getCurrentUserProfile().then(setCurrentUser);
+  }, []);
 
   return (
     <>
@@ -25,9 +31,16 @@ export function FeedContainer() {
         onClick={() => setIsComposeOpen(true)}
         className="flex items-start p-4 bg-white gap-3 border-b border-[#E2EAF2] z-10 cursor-pointer hover:bg-gray-50/50 transition-colors"
       >
-        <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br from-[#D2D2D2] to-[#767676] flex items-center justify-center font-bold text-white text-[16px]">
-          KL
-        </div>
+        {/* AVATAR DYNAMIQUE */}
+        {currentUser?.avatar_url ? (
+          <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden">
+            <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br from-[#D2D2D2] to-[#767676] flex items-center justify-center font-bold text-white text-[16px] overflow-hidden">
+            {currentUser?.username ? currentUser.username.substring(0, 2).toUpperCase() : ""}
+          </div>
+        )}
         <div className="flex-1 pt-2">
           <span className="text-[15px] text-[#9AABBF]">Comment ça va ?</span>
         </div>

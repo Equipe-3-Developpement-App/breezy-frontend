@@ -6,7 +6,7 @@ import { NavBar } from "./layout/NavBar";
 import { TweetCard } from "./tweets/TweetCard";
 import { UserCard } from "./users/UserCard";
 import { Tweet, User } from "@/types";
-import { searchTweetsByTag, searchUsersApi, toggleFollowApi } from "@/utils/api";
+import { searchTweetsByTag, searchUsersApi, toggleFollowApi, getCurrentUserProfile, UserProfile, getFollowingIds } from "@/utils/api";
 import { Search, Hash, RefreshCw, X } from "lucide-react";
 
 export function SearchContainer() {
@@ -18,10 +18,10 @@ export function SearchContainer() {
   
   const [postResults, setPostResults] = useState<Tweet[]>([]);
   const [userResults, setUserResults] = useState<User[]>([]);
-  // On gère un état local pour les suivis afin d'éviter un rechargement complet
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   const trendingTags = ["design", "nextjs", "breezy", "frontend", "dev", "mobile"];
 
@@ -29,6 +29,21 @@ export function SearchContainer() {
     setQuery(tagFromUrl);
     if (tagFromUrl) setActiveTab("posts");
   }, [tagFromUrl]);
+
+  // Initialiser ton profil ET tes abonnements pour la map Utilisateurs
+  useEffect(() => {
+    const initProfile = async () => {
+      const user = await getCurrentUserProfile();
+      setCurrentUser(user);
+      if (user) {
+        const followIds = await getFollowingIds(user.id_auth);
+        const initialMap: Record<string, boolean> = {};
+        followIds.forEach(id => { initialMap[id] = true; });
+        setFollowingMap(initialMap);
+      }
+    };
+    initProfile();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,21 +81,72 @@ export function SearchContainer() {
     };
   }, [query, activeTab]);
 
-  const handleToggleFollow = async (userId: string) => {
-    // Mise à jour optimiste de l'UI
+  // --- ACTIONS POSTS ---
+  const handleLikeToggle = async (tweetId: string) => {
+    let updatedIsLiked = false;
+    let updatedCount = 0;
+    setPostResults((current) => current.map((tweet) => {
+      if (tweet.id === tweetId) {
+        updatedIsLiked = !tweet.isLiked;
+        updatedCount = updatedIsLiked ? tweet.likeCount + 1 : Math.max(0, tweet.likeCount - 1);
+        return { ...tweet, isLiked: updatedIsLiked, likeCount: updatedCount };
+      }
+      return tweet;
+    }));
+    try {
+      const { likeTweetApi } = await import("@/utils/api");
+      await likeTweetApi(tweetId, updatedIsLiked, updatedCount);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleRetweetToggle = async (tweetId: string) => {
+    let updatedIsRetweeted = false;
+    let updatedCount = 0;
+    setPostResults((current) => current.map((tweet) => {
+      if (tweet.id === tweetId) {
+        updatedIsRetweeted = !tweet.isRetweeted;
+        updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : Math.max(0, tweet.retweetCount - 1);
+        return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
+      }
+      return tweet;
+    }));
+    try {
+      const { retweetTweetApi } = await import("@/utils/api");
+      await retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
+    } catch (err) { console.error(err); }
+  };
+
+  const handlePostFollowToggle = async (userId: string) => {
+    const target = postResults.find(t => t.user.id === userId);
+    if (!target) return;
+    const isCurrentlyFollowing = target.isFollowing;
+
+    setPostResults((current) => current.map((tweet) => {
+      if (tweet.user.id === userId) return { ...tweet, isFollowing: !isCurrentlyFollowing };
+      return tweet;
+    }));
+    try {
+      await toggleFollowApi(userId, isCurrentlyFollowing || false);
+    } catch (err) {
+      setPostResults((current) => current.map((tweet) => {
+        if (tweet.user.id === userId) return { ...tweet, isFollowing: isCurrentlyFollowing };
+        return tweet;
+      }));
+    }
+  };
+
+  // --- ACTIONS UTILISATEURS ---
+  const handleUserFollowToggle = async (userId: string) => {
     const isCurrentlyFollowing = followingMap[userId] || false;
     setFollowingMap(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
     
     try {
       await toggleFollowApi(userId, isCurrentlyFollowing);
     } catch (error) {
-      // En cas d'erreur, on annule l'action dans l'UI
       console.error("Erreur lors de l'abonnement", error);
       setFollowingMap(prev => ({ ...prev, [userId]: isCurrentlyFollowing }));
     }
   };
-
-  const handleNoop = () => {};
 
   return (
     <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden bg-breezy-bgLight">
@@ -100,6 +166,8 @@ export function SearchContainer() {
               type="button"
               onClick={() => setQuery("")}
               className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full text-breezy-gray cursor-pointer transition-colors border-none"
+              aria-label="Effacer la recherche"
+              title="Effacer la recherche"
             >
               <X size={14} />
             </button>
@@ -129,7 +197,6 @@ export function SearchContainer() {
 
       <div className="flex-1 overflow-y-auto pb-[68px] no-scrollbar">
 
-        {/* État : Chargement */}
         {query.trim() && loading && (
           <div className="flex justify-center p-8">
             <RefreshCw className="animate-spin text-breezy-blue" size={24} />
@@ -140,7 +207,14 @@ export function SearchContainer() {
         {activeTab === "posts" && query.trim() && !loading && postResults.length > 0 && (
           <div className="flex flex-col">
             {postResults.map((tweet) => (
-              <TweetCard key={tweet.id} tweet={tweet} onLike={handleNoop} onRetweet={handleNoop} onFollow={handleNoop} />
+              <TweetCard 
+                key={tweet.id} 
+                tweet={tweet} 
+                onLike={handleLikeToggle} 
+                onRetweet={handleRetweetToggle} 
+                onFollow={handlePostFollowToggle} 
+                isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id}
+              />
             ))}
           </div>
         )}
@@ -153,7 +227,8 @@ export function SearchContainer() {
                 key={user.id}
                 user={user}
                 isFollowing={followingMap[user.id] || false}
-                onFollow={handleToggleFollow}
+                onFollow={handleUserFollowToggle}
+                isCurrentUser={currentUser?.id_auth?.toString() === user.id}
               />
             ))}
           </div>
@@ -167,18 +242,13 @@ export function SearchContainer() {
           </div>
         )}
 
-        {/* Tendances (affichées uniquement si l'input est vide et sur l'onglet posts) */}
+        {/* Tendances */}
         {!query.trim() && activeTab === "posts" && (
           <div className="p-5 flex flex-col gap-4">
             <h2 className="font-extrabold text-[19px] text-breezy-dark tracking-tight">Tendances</h2>
             <div className="flex flex-wrap gap-2">
               {trendingTags.map(tag => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => setQuery(tag)}
-                  className="flex items-center gap-1 px-4 py-2 bg-white border border-breezy-border-light rounded-full text-[14.5px] font-bold text-breezy-blue hover:bg-blue-50 transition-colors cursor-pointer"
-                >
+                <button key={tag} type="button" onClick={() => setQuery(tag)} className="flex items-center gap-1 px-4 py-2 bg-white border border-breezy-border-light rounded-full text-[14.5px] font-bold text-breezy-blue hover:bg-blue-50 transition-colors cursor-pointer border-none">
                   <Hash size={16} /> {tag}
                 </button>
               ))}
