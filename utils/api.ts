@@ -107,13 +107,17 @@ export const getAllUsers = async (): Promise<UserProfile[]> => {
   } catch { return []; }
 };
 
+export const getUserProfileByAuthId = async (id: string | number): Promise<UserProfile | null> => {
+  try {
+    const res = await apiClient.get(`/api/users/by-auth/${id}`);
+    return res.data;
+  } catch { return null; }
+};
+
 export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
   const authUser = await fetchCurrentUser();
   if (!authUser) return null;
-  try {
-    const res = await apiClient.get(`/api/users/by-auth/${authUser.id}`);
-    return res.data;
-  } catch { return null; }
+  return getUserProfileByAuthId(authUser.id);
 };
 
 export const getUserFollowStats = async (userId: string | number) => {

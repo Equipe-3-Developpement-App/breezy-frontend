@@ -9,10 +9,9 @@ interface TweetCardProps {
   onRetweet: (tweetId: string) => void;
   onFollow: (userId: string) => void;
   onDelete?: (tweetId: string) => void;
-  isOwnTweet?: boolean; // NOUVEAU : Permet au parent de signaler si c'est notre post
+  isOwnTweet?: boolean;
 }
 
-// On récupère la prop isOwnTweet (par défaut à false)
 export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, isOwnTweet = false }: TweetCardProps) {
   const displayLikeCount = tweet.likeCount;
   const displayRetweetCount = tweet.retweetCount;
@@ -29,22 +28,39 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, isOwnT
   return (
     <div className="flex p-4 bg-breezy-bgLight border-b border-breezy-border-light w-full text-left">
 
-      {/* CORRECTION DE L'AVATAR : Ajout de overflow-hidden et de la balise <img> */}
-      {tweet.user.avatarUrl ? (
-        <div className="w-[42px] h-[42px] shrink-0 rounded-full flex items-center justify-center overflow-hidden bg-white">
-          <img src={tweet.user.avatarUrl} alt={`Avatar de ${tweet.user.username}`} className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br from-[#5194D6] to-[#2A2FC0] flex items-center justify-center font-bold text-white text-[16.8px] overflow-hidden">
-          {tweet.user.username.substring(0, 2).toUpperCase()}
-        </div>
-      )}
+      {/* AVATAR CLIQUABLE */}
+      <Link 
+        href={`/profile/${tweet.user.id}`} 
+        onClick={(e) => e.stopPropagation()} 
+        className="shrink-0 hover:opacity-80 transition-opacity no-underline outline-none focus-visible:ring-2 focus-visible:ring-breezy-blue rounded-full h-max"
+        aria-label={`Aller sur le profil de ${tweet.user.username}`}
+        title={`Aller sur le profil de ${tweet.user.username}`}
+      >
+        {tweet.user.avatarUrl ? (
+          <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center overflow-hidden bg-white">
+            <img src={tweet.user.avatarUrl} alt={`Avatar de ${tweet.user.username}`} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-[42px] h-[42px] rounded-full bg-gradient-to-br from-[#5194D6] to-[#2A2FC0] flex items-center justify-center font-bold text-white text-[16.8px] overflow-hidden">
+            {tweet.user.username.substring(0, 2).toUpperCase()}
+          </div>
+        )}
+      </Link>
 
       <div className="flex flex-col gap-2.5 ml-3 w-full">
 
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[14.5px] text-breezy-dark">@{tweet.user.username}</span>
+            {/* PSEUDO CLIQUABLE */}
+            <Link 
+              href={`/profile/${tweet.user.id}`} 
+              onClick={(e) => e.stopPropagation()} 
+              className="font-bold text-[14.5px] text-breezy-dark no-underline hover:underline outline-none focus-visible:ring-2 focus-visible:ring-breezy-blue rounded-sm"
+              aria-label={`Aller sur le profil de ${tweet.user.username}`}
+              title={`Aller sur le profil de ${tweet.user.username}`}
+            >
+              @{tweet.user.username}
+            </Link>
             <span className="text-[14px] text-breezy-gray">·</span>
             <span className="text-[13px] text-breezy-gray">{tweet.createdAt}</span>
           </div>
@@ -52,7 +68,7 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, isOwnT
           {!isOwnTweet && (
             <button
               type="button"
-              onClick={() => onFollow(tweet.user.id)}
+              onClick={(e) => { e.stopPropagation(); onFollow(tweet.user.id); }}
               aria-label={tweet.isFollowing ? "Se désabonner" : "Suivre"}
               title={tweet.isFollowing ? "Se désabonner" : "Suivre"}
               className={`px-3 py-1 text-[13px] font-bold rounded-full transition-all duration-200 ease-in-out shrink-0 cursor-pointer active:scale-95 border select-none
