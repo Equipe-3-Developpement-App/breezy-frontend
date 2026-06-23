@@ -8,12 +8,13 @@ import { ComposeModal } from "./modals/ComposeModal";
 import { Tweet } from "@/types";
 import { 
   deleteTweetApi, getCurrentUserProfile, getUserPosts, 
-  getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile 
+  getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile, logoutApi 
 } from "@/utils/api";
 import { Settings, LogOut, X, RefreshCw, Camera } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function ProfileContainer() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("messages");
   const [showSettings, setShowSettings] = useState(false);
   
@@ -32,6 +33,17 @@ export function ProfileContainer() {
 
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
+
+  // --- DÉCONNEXION ---
+  const handleLogout = async () => {
+    try {
+      await logoutApi(); // Prévient le backend de détruire le cookie
+    } catch (err) {
+      console.error("Erreur lors de la déconnexion", err);
+    } finally {
+      router.push("/login"); // Redirige l'utilisateur
+    }
+  };
 
   // --- CHARGEMENT DES DONNÉES ---
   useEffect(() => {
@@ -373,15 +385,19 @@ export function ProfileContainer() {
                 <X size={18} />
               </button>
             </div>
-            <Link 
-              href="/login" 
-              aria-label="Se déconnecter de l'application"
-              title="Se déconnecter"
-              className="flex items-center gap-4 w-full p-4 hover:bg-red-50 text-red-500 rounded-xl transition-all cursor-pointer group no-underline"
-            >
-              <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-[16px]">Se déconnecter</span>
-            </Link>
+            
+            <div className="flex flex-col w-full pt-1">
+              <button 
+                type="button"
+                onClick={handleLogout}
+                aria-label="Se déconnecter de l'application"
+                title="Se déconnecter"
+                className="flex items-center gap-4 w-full p-4 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-xl transition-all cursor-pointer select-none group border-none bg-transparent text-left"
+              >
+                <LogOut size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-[16px]">Se déconnecter</span>
+              </button>
+            </div>
           </div>
         </>
       )}
