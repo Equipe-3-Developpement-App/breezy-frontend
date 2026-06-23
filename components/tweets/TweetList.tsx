@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { TweetCard } from "./TweetCard";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
+import { ComposeModal } from "../modals/ComposeModal";
 import { Tweet } from "@/types";
 import { getTweets, deleteTweetApi, getCurrentUserProfile, UserProfile } from "@/utils/api";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -14,6 +15,7 @@ export function TweetList() {
   const [error, setError] = useState<string | null>(null);
   
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
+  const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -23,7 +25,6 @@ export function TweetList() {
         setLoading(true);
         setError(null);
         
-        // On récupère ton profil et le feed en même temps
         const [user, data] = await Promise.all([
           getCurrentUserProfile(),
           getTweets()
@@ -31,8 +32,6 @@ export function TweetList() {
         
         if (isMounted) {
           setCurrentUser(user);
-          
-          // FILTRE MAGIQUE : On ne garde QUE les posts qui n'ont pas ton ID
           const filteredTweets = data.filter(t => t.user.id !== user?.id_auth?.toString());
           setTweets(filteredTweets);
         }
@@ -85,7 +84,7 @@ export function TweetList() {
     } catch (err) { console.error(err); }
   };
 
-const handleFollowToggle = async (userId: string) => {
+  const handleFollowToggle = async (userId: string) => {
     const target = tweets.find(t => t.user.id === userId);
     if (!target) return;
     const isCurrentlyFollowing = target.isFollowing;
@@ -149,11 +148,14 @@ const handleFollowToggle = async (userId: string) => {
           onRetweet={handleRetweetToggle}
           onFollow={handleFollowToggle}
           onDelete={openDeleteConfirmation}
+          onEdit={setTweetToEdit}
           isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id} 
         />
       ))}
 
       <ConfirmationModal isOpen={tweetToDelete !== null} title="Supprimer le message ?" message="Cette action est irréversible. Le message sera définitivement retiré du flux." confirmLabel="Supprimer" cancelLabel="Annuler" onConfirm={handleConfirmDelete} onCancel={() => setTweetToDelete(null)} />
+      
+      {tweetToEdit && <ComposeModal onClose={() => { setTweetToEdit(null); window.location.reload(); }} tweetToEdit={tweetToEdit} />}
     </div>
   );
 }

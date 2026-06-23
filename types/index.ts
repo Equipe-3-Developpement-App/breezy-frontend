@@ -18,4 +18,5 @@ export interface Tweet {
   isRetweeted: boolean;
   isFollowing?: boolean;
   tags?: string[];
+  isEdited?: boolean;
 }

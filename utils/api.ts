@@ -173,6 +173,7 @@ export const searchUsersApi = async (query: string): Promise<User[]> => {
   }));
 };
 
+
 // ===========================================================================
 //  POSTS, MEDIAS & TAGS
 // ===========================================================================
@@ -209,6 +210,7 @@ export const hydrateTweets = async (posts: any[]): Promise<Tweet[]> => {
       isLiked: post.isLiked === true, 
       isRetweeted: false,
       isFollowing: myFollowingIds.includes(authorIdStr),
+      isEdited: post.is_edited === true,
       tags: post.tag || [],
       user: {
         id: authorIdStr,
@@ -232,6 +234,13 @@ export const getUserPosts = async (userId: string | number): Promise<Tweet[]> =>
 export const createTweetApi = async (text: string, mediaUrl?: string | null): Promise<Tweet> => {
   const tags = text.match(/#[a-zA-Z0-9_À-ÿ]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
   const response = await apiClient.post("/api/posts/create", { content: text, media: mediaUrl, tag: tags });
+  const [hydrated] = await hydrateTweets([response.data.post]);
+  return hydrated;
+};
+
+export const updateTweetApi = async (tweetId: string, text: string, mediaUrl?: string | null): Promise<Tweet> => {
+  const tags = text.match(/#[a-zA-Z0-9_À-ÿ]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
+  const response = await apiClient.put(`/api/posts/${tweetId}`, { content: text, media: mediaUrl, tag: tags });
   const [hydrated] = await hydrateTweets([response.data.post]);
   return hydrated;
 };

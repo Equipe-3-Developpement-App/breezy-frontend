@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { NavBar } from "./layout/NavBar";
 import { TweetCard } from "./tweets/TweetCard";
 import { UserCard } from "./users/UserCard";
+import { ConfirmationModal } from "./modals/ConfirmationModal";
+import { ComposeModal } from "./modals/ComposeModal";
 import { Tweet, User } from "@/types";
-import { searchTweetsByTag, searchUsersApi, toggleFollowApi, getCurrentUserProfile, UserProfile, getFollowingIds } from "@/utils/api";
+import { searchTweetsByTag, searchUsersApi, toggleFollowApi, getCurrentUserProfile, UserProfile, getFollowingIds, deleteTweetApi } from "@/utils/api";
 import { Search, Hash, RefreshCw, X } from "lucide-react";
 
 export function SearchContainer() {
@@ -23,6 +25,9 @@ export function SearchContainer() {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
+  const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
+  const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null); 
+
   const trendingTags = ["design", "nextjs", "breezy", "frontend", "dev", "mobile"];
 
   useEffect(() => {
@@ -30,7 +35,6 @@ export function SearchContainer() {
     if (tagFromUrl) setActiveTab("posts");
   }, [tagFromUrl]);
 
-  // Initialiser ton profil ET tes abonnements pour la map Utilisateurs
   useEffect(() => {
     const initProfile = async () => {
       const user = await getCurrentUserProfile();
@@ -81,7 +85,6 @@ export function SearchContainer() {
     };
   }, [query, activeTab]);
 
-  // --- ACTIONS POSTS ---
   const handleLikeToggle = async (tweetId: string) => {
     let updatedIsLiked = false;
     let updatedCount = 0;
@@ -135,7 +138,6 @@ export function SearchContainer() {
     }
   };
 
-  // --- ACTIONS UTILISATEURS ---
   const handleUserFollowToggle = async (userId: string) => {
     const isCurrentlyFollowing = followingMap[userId] || false;
     setFollowingMap(prev => ({ ...prev, [userId]: !isCurrentlyFollowing }));
@@ -146,6 +148,14 @@ export function SearchContainer() {
       console.error("Erreur lors de l'abonnement", error);
       setFollowingMap(prev => ({ ...prev, [userId]: isCurrentlyFollowing }));
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tweetToDelete) return;
+    try {
+      setPostResults((current) => current.filter((t) => t.id !== tweetToDelete));
+      await deleteTweetApi(tweetToDelete);
+    } catch (err) { console.error(err); } finally { setTweetToDelete(null); }
   };
 
   return (
@@ -174,7 +184,6 @@ export function SearchContainer() {
           )}
         </div>
 
-        {/* Onglets de navigation */}
         <div className="flex justify-between items-center w-full h-[44px]">
           <button 
             type="button"
@@ -213,6 +222,8 @@ export function SearchContainer() {
                 onLike={handleLikeToggle} 
                 onRetweet={handleRetweetToggle} 
                 onFollow={handlePostFollowToggle} 
+                onDelete={() => setTweetToDelete(tweet.id)}
+                onEdit={setTweetToEdit}
                 isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id}
               />
             ))}
@@ -234,7 +245,6 @@ export function SearchContainer() {
           </div>
         )}
 
-        {/* État : Aucun résultat */}
         {query.trim() && !loading && ((activeTab === "posts" && postResults.length === 0) || (activeTab === "users" && userResults.length === 0)) && (
           <div className="flex flex-col items-center justify-center p-12 text-center text-breezy-gray gap-2">
             <Search size={40} className="text-gray-300 opacity-50" />
@@ -242,7 +252,6 @@ export function SearchContainer() {
           </div>
         )}
 
-        {/* Tendances */}
         {!query.trim() && activeTab === "posts" && (
           <div className="p-5 flex flex-col gap-4">
             <h2 className="font-extrabold text-[19px] text-breezy-dark tracking-tight">Tendances</h2>
@@ -258,6 +267,9 @@ export function SearchContainer() {
       </div>
 
       <NavBar activePage="search" />
+
+      <ConfirmationModal isOpen={tweetToDelete !== null} title="Supprimer le message ?" message="Cette action est irréversible." confirmLabel="Supprimer" cancelLabel="Annuler" onConfirm={handleConfirmDelete} onCancel={() => setTweetToDelete(null)} />
+      {tweetToEdit && <ComposeModal onClose={() => { setTweetToEdit(null); window.location.reload(); }} tweetToEdit={tweetToEdit} />}
     </div>
   );
 }

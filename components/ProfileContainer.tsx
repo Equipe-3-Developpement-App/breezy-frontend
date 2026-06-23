@@ -13,7 +13,6 @@ import {
 import { Settings, LogOut, X, RefreshCw, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// CORRECTION TS : On déclare proprement les arguments acceptés par le composant
 interface ProfileContainerProps {
   targetUserId?: string;
 }
@@ -28,7 +27,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
   const [userTweets, setUserTweets] = useState<Tweet[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // États logiques de navigation
   const [isOwnProfile, setIsOwnProfile] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,6 +38,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
 
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
+  const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null);
 
   const handleLogout = async () => {
     try { await logoutApi(); } catch (err) {} finally { router.push("/login"); }
@@ -54,7 +53,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
         const authUser = await fetchCurrentUser();
         if (!authUser) return;
 
-        // Détermine si on regarde notre propre profil ou celui d'un autre
         const actualTargetId = targetUserId || authUser.id.toString();
         const own = actualTargetId === authUser.id.toString();
         if (isMounted) setIsOwnProfile(own);
@@ -108,7 +106,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
     } catch (err) {} finally { setIsSaving(false); }
   };
 
-  // NOUVEAU : Fonction de Follow directement depuis l'en-tête du profil
   const handleFollowToggleProfile = async () => {
     if (!profile) return;
     const targetId = profile.id_auth.toString();
@@ -315,7 +312,9 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
               userTweets.map((tweet) => (
                 <TweetCard
                   key={tweet.id} tweet={tweet} onLike={handleLikeToggle} onRetweet={handleRetweetToggle} onFollow={handleFollowToggleFromTweet}
-                  onDelete={() => setTweetToDelete(tweet.id)} isOwnTweet={isOwnProfile}
+                  onDelete={() => setTweetToDelete(tweet.id)}
+                  onEdit={setTweetToEdit}
+                  isOwnTweet={isOwnProfile}
                 />
               ))
             ) : (
@@ -337,7 +336,13 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
       <NavBar activePage="profile" />
 
       <ConfirmationModal isOpen={tweetToDelete !== null} title="Supprimer ?" message="Irréversible." onConfirm={handleConfirmDelete} onCancel={() => setTweetToDelete(null)} />
-      {showCompose && <ComposeModal onClose={() => { setShowCompose(false); window.location.reload(); }} />}
+      
+      {(showCompose || tweetToEdit !== null) && (
+        <ComposeModal 
+          onClose={() => { setShowCompose(false); setTweetToEdit(null); window.location.reload(); }} 
+          tweetToEdit={tweetToEdit} 
+        />
+      )}
 
       {showSettings && (
         <>
