@@ -7,21 +7,17 @@ import { ConfirmationModal } from "./modals/ConfirmationModal";
 import { ComposeModal } from "./modals/ComposeModal";
 import { Tweet } from "@/types";
 import { 
-  deleteTweetApi, getUserPosts, getUserReplies, getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile, logoutApi,
+  deleteTweetApi, getUserPosts, getUserReplies, getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile,
   fetchCurrentUser, getUserProfileByAuthId, getFollowingIds, toggleFollowApi
 } from "@/utils/api";
-import { Settings, LogOut, X, RefreshCw, Camera } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { RefreshCw, Camera } from "lucide-react";
 
 interface ProfileContainerProps {
   targetUserId?: string;
 }
 
 export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
-  const router = useRouter();
-  
   const [activeTab, setActiveTab] = useState<"messages" | "responses">("messages");
-  const [showSettings, setShowSettings] = useState(false);
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState({ followingCount: 0, followersCount: 0 });
@@ -43,10 +39,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null);
-
-  const handleLogout = async () => {
-    try { await logoutApi(); } catch (err) {} finally { router.push("/login"); }
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -206,19 +198,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
             </div>
           </div>
           
-          <div className="flex flex-col items-end gap-[30px] w-full max-w-[375px]">
-            {isOwnProfile ? (
-              <button 
-                type="button" onClick={() => setShowSettings(true)}
-                aria-label="Ouvrir les paramètres" title="Ouvrir les paramètres"
-                className="w-[34px] h-[34px] flex items-center justify-center text-breezy-dark hover:text-breezy-blue hover:bg-white/50 rounded-full transition-colors cursor-pointer bg-transparent border-none p-0"
-              >
-                <Settings size={24} />
-              </button>
-            ) : (
-              <div className="h-[34px]" /> 
-            )}
-
+          <div className="flex flex-col items-end w-full max-w-[375px]">
             {isOwnProfile ? (
               !isEditing && (
                 <button 
@@ -291,7 +271,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
           )}
         </div>
 
-        {/* 2 ONGLETS UNIQUEMENT */}
         <div className="flex justify-between items-center px-5 h-[44px] w-full bg-transparent border-b border-breezy-border-light">
           {(["messages", "responses"] as const).map(tab => (
             <button 
@@ -305,7 +284,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
           ))}
         </div>
 
-        {/* AFFICHAGE DES ONGLETS */}
         <div className="w-full text-left">
           {activeTab === "messages" && (
             userTweets.length > 0 ? (
@@ -357,22 +335,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
           onClose={() => { setShowCompose(false); setTweetToEdit(null); window.location.reload(); }} 
           tweetToEdit={tweetToEdit} 
         />
-      )}
-
-      {showSettings && (
-        <>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 transition-opacity" onClick={() => setShowSettings(false)} />
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-6 pb-8 z-[60] shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col gap-4 animate-in slide-in-from-bottom">
-            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-2" />
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <h3 className="text-[19px] font-extrabold text-breezy-dark">Options</h3>
-              <button type="button" onClick={() => setShowSettings(false)} aria-label="Fermer" title="Fermer" className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-breezy-gray cursor-pointer border-none"><X size={18} /></button>
-            </div>
-            <button type="button" onClick={handleLogout} aria-label="Se déconnecter" title="Se déconnecter" className="flex items-center gap-4 w-full p-4 hover:bg-red-50 text-red-500 hover:text-red-600 rounded-xl transition-all cursor-pointer border-none bg-transparent text-left">
-              <LogOut size={20} /> <span className="font-bold text-[16px]">Se déconnecter</span>
-            </button>
-          </div>
-        </>
       )}
     </>
   );

@@ -72,6 +72,16 @@ export async function registerApi(username: string, email: string, password: str
   await apiClient.post("/api/users/", { username });
 }
 
+export async function adminCreateUserApi(username: string, email: string, password: string) {
+  const available = await checkUsernameAvailable(username);
+  if (!available) throw new ApiError("Ce nom d'utilisateur est déjà pris");
+  
+  const authRes = await apiClient.post("/api/auth/register", { email, password });
+  const newUserId = authRes.data.data.id;
+
+  await apiClient.post("/api/users/", { username, id_auth: newUserId });
+}
+
 export async function logoutApi() {
   try {
     await apiClient.post("/api/auth/logout");
