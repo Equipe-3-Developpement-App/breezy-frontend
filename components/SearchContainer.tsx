@@ -102,23 +102,6 @@ export function SearchContainer() {
     } catch (err) { console.error(err); }
   };
 
-  const handleRetweetToggle = async (tweetId: string) => {
-    let updatedIsRetweeted = false;
-    let updatedCount = 0;
-    setPostResults((current) => current.map((tweet) => {
-      if (tweet.id === tweetId) {
-        updatedIsRetweeted = !tweet.isRetweeted;
-        updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : Math.max(0, tweet.retweetCount - 1);
-        return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
-      }
-      return tweet;
-    }));
-    try {
-      const { retweetTweetApi } = await import("@/utils/api");
-      await retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
-    } catch (err) { console.error(err); }
-  };
-
   const handlePostFollowToggle = async (userId: string) => {
     const target = postResults.find(t => t.user.id === userId);
     if (!target) return;
@@ -220,7 +203,6 @@ export function SearchContainer() {
                 key={tweet.id} 
                 tweet={tweet} 
                 onLike={handleLikeToggle} 
-                onRetweet={handleRetweetToggle} 
                 onFollow={handlePostFollowToggle} 
                 onDelete={() => setTweetToDelete(tweet.id)}
                 onEdit={setTweetToEdit}

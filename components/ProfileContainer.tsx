@@ -141,23 +141,6 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
     } catch (err) {}
   };
 
-  const handleRetweetToggle = async (tweetId: string) => {
-    let updatedIsRetweeted = false;
-    let updatedCount = 0;
-    setUserTweets((current) => current.map((tweet) => {
-      if (tweet.id === tweetId) {
-        updatedIsRetweeted = !tweet.isRetweeted;
-        updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : Math.max(0, tweet.retweetCount - 1);
-        return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
-      }
-      return tweet;
-    }));
-    try {
-      const { retweetTweetApi } = await import("@/utils/api");
-      await retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
-    } catch (err) {}
-  };
-
   const handleFollowToggleFromTweet = async () => {
     await handleFollowToggleProfile();
   };
@@ -311,7 +294,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
             userTweets.length > 0 ? (
               userTweets.map((tweet) => (
                 <TweetCard
-                  key={tweet.id} tweet={tweet} onLike={handleLikeToggle} onRetweet={handleRetweetToggle} onFollow={handleFollowToggleFromTweet}
+                  key={tweet.id} tweet={tweet} onLike={handleLikeToggle} onFollow={handleFollowToggleFromTweet}
                   onDelete={() => setTweetToDelete(tweet.id)}
                   onEdit={setTweetToEdit}
                   isOwnTweet={isOwnProfile}

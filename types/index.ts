@@ -13,9 +13,8 @@ export interface Tweet {
   createdAt: string;
   user: User;
   likeCount: number;
-  retweetCount: number;
+  commentCount: number;
   isLiked: boolean;
-  isRetweeted: boolean;
   isFollowing?: boolean;
   tags?: string[];
   isEdited?: boolean;

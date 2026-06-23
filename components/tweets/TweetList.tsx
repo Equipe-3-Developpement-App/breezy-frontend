@@ -67,23 +67,6 @@ export function TweetList() {
     } catch (err) { console.error(err); }
   };
 
-  const handleRetweetToggle = async (tweetId: string) => {
-    let updatedIsRetweeted = false;
-    let updatedCount = 0;
-    setTweets((currentTweets) => currentTweets.map((tweet) => {
-      if (tweet.id === tweetId) {
-        updatedIsRetweeted = !tweet.isRetweeted;
-        updatedCount = updatedIsRetweeted ? tweet.retweetCount + 1 : Math.max(0, tweet.retweetCount - 1);
-        return { ...tweet, isRetweeted: updatedIsRetweeted, retweetCount: updatedCount };
-      }
-      return tweet;
-    }));
-    try {
-      const { retweetTweetApi } = await import("@/utils/api");
-      await retweetTweetApi(tweetId, updatedIsRetweeted, updatedCount);
-    } catch (err) { console.error(err); }
-  };
-
   const handleFollowToggle = async (userId: string) => {
     const target = tweets.find(t => t.user.id === userId);
     if (!target) return;
@@ -145,7 +128,6 @@ export function TweetList() {
           key={tweet.id}
           tweet={tweet}
           onLike={handleLikeToggle}
-          onRetweet={handleRetweetToggle}
           onFollow={handleFollowToggle}
           onDelete={openDeleteConfirmation}
           onEdit={setTweetToEdit}

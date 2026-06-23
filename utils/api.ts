@@ -145,7 +145,6 @@ export const getFollowingIds = async (userId: string | number): Promise<string[]
   } catch { return []; }
 };
 
-// Fonctions d'abonnement (unifiées)
 export const followUserApi = async (userId: string) => {
   await apiClient.post("/api/users/follow", { id_followee: userId });
 };
@@ -172,7 +171,6 @@ export const searchUsersApi = async (query: string): Promise<User[]> => {
     avatarUrl: u.avatar_url || undefined,
   }));
 };
-
 
 // ===========================================================================
 //  POSTS, MEDIAS & TAGS
@@ -206,9 +204,8 @@ export const hydrateTweets = async (posts: any[]): Promise<Tweet[]> => {
         hour: "2-digit", minute: "2-digit"
       }),
       likeCount: post.likes_count || 0,
-      retweetCount: 0,
+      commentCount: post.comments_count || 0,
       isLiked: post.isLiked === true, 
-      isRetweeted: false,
       isFollowing: myFollowingIds.includes(authorIdStr),
       isEdited: post.is_edited === true,
       tags: post.tag || [],
@@ -273,18 +270,16 @@ export const searchTweetsByTag = async (query: string): Promise<Tweet[]> => {
 };
 
 export const getTweetById = async (tweetId: string) => {
+  const response = await apiClient.get(`/api/posts/${tweetId}`);
+  const hydratedPostArr = await hydrateTweets([response.data.post]);
+  const hydratedCommentsArr = await hydrateTweets(response.data.comments || []);
+  
+  if (hydratedPostArr.length === 0) throw new Error("Post introuvable");
+  
   return {
-    id: tweetId,
-    content: "Route GET /api/posts/:id manquante dans le backend.",
-    createdAt: "Maintenant",
-    likeCount: 0, retweetCount: 0, isLiked: false, isRetweeted: false,
-    user: { id: "1", username: "admin"},
-    comments: []
+    ...hydratedPostArr[0],
+    comments: hydratedCommentsArr
   };
-};
-
-export const retweetTweetApi = async (tweetId: string, isRetweeted: boolean, nextCount: number) => {
-  console.warn(`Simulation du retweet pour ${tweetId}`);
 };
 
 export const deleteTweetApi = async (tweetId: string) => {

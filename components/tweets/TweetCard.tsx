@@ -1,21 +1,19 @@
 import React from "react";
-import { MessageCircle, Repeat2, Heart, Share, Trash2, Pencil } from "lucide-react";
+import { MessageCircle, Heart, Trash2, Pencil } from "lucide-react";
 import { Tweet } from "@/types";
 import Link from "next/link";
 
 interface TweetCardProps {
   tweet: Tweet;
   onLike: (tweetId: string) => void;
-  onRetweet: (tweetId: string) => void;
   onFollow: (userId: string) => void;
   onDelete?: (tweetId: string) => void;
   onEdit?: (tweet: Tweet) => void;
   isOwnTweet?: boolean;
 }
 
-export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit, isOwnTweet = false }: TweetCardProps) {
+export function TweetCard({ tweet, onLike, onFollow, onDelete, onEdit, isOwnTweet = false }: TweetCardProps) {
   const displayLikeCount = tweet.likeCount;
-  const displayRetweetCount = tweet.retweetCount;
 
   const renderContentWithHashtags = (text: string) => {
     return text.split(/(#[a-zA-Z0-9_À-ÿ]+)/g).map((part, index) => {
@@ -55,6 +53,8 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit
               href={`/profile/${tweet.user.id}`} 
               onClick={(e) => e.stopPropagation()} 
               className="font-bold text-[14.5px] text-breezy-dark no-underline hover:underline outline-none focus-visible:ring-2 focus-visible:ring-breezy-blue rounded-sm"
+              aria-label={`Aller sur le profil de ${tweet.user.username}`}
+              title={`Aller sur le profil de ${tweet.user.username}`}
             >
               @{tweet.user.username}
             </Link>
@@ -69,6 +69,8 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onFollow(tweet.user.id); }}
+              aria-label={tweet.isFollowing ? "Se désabonner" : "Suivre"}
+              title={tweet.isFollowing ? "Se désabonner" : "Suivre"}
               className={`px-3 py-1 text-[13px] font-bold rounded-full transition-all duration-200 ease-in-out shrink-0 cursor-pointer active:scale-95 border select-none
                 ${tweet.isFollowing
                   ? "bg-breezy-blue border-breezy-blue text-white hover:bg-breezy-darkBlue hover:border-breezy-darkBlue"
@@ -86,7 +88,14 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit
         {tweet.tags && tweet.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {tweet.tags.map((tag) => (
-              <Link key={tag} href={`/search?tag=${encodeURIComponent(tag)}`} className="text-breezy-blue text-[12.5px] font-semibold hover:underline bg-blue-50 px-2 py-0.5 rounded-full" onClick={(e) => e.stopPropagation()}>
+              <Link 
+                key={tag} 
+                href={`/search?tag=${encodeURIComponent(tag)}`} 
+                className="text-breezy-blue text-[12.5px] font-semibold hover:underline bg-blue-50 px-2 py-0.5 rounded-full" 
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Rechercher le tag ${tag}`}
+                title={`Rechercher le tag ${tag}`}
+              >
                 #{tag}
               </Link>
             ))}
@@ -99,34 +108,37 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit
           </div>
         )}
 
-        <div className="flex justify-between items-center text-breezy-gray text-[13px] font-medium max-w-[280px] mt-1 w-full">
+        <div className="flex items-center gap-8 text-breezy-gray text-[13px] font-medium mt-1 w-full">
 
-          <Link href={`/feed/${tweet.id}`} className="flex items-center gap-1.5 cursor-pointer hover:text-blue-500 group transition text-inherit no-underline">
+          <Link 
+            href={`/feed/${tweet.id}`} 
+            className="flex items-center gap-1.5 cursor-pointer hover:text-blue-500 group transition text-inherit no-underline"
+            aria-label="Voir la conversation"
+            title="Voir la conversation"
+          >
             <MessageCircle size={17} strokeWidth={2} className="group-hover:scale-110 transition" />
-            <span>{(tweet as any).commentCount || 0}</span>
+            <span>{tweet.commentCount}</span>
           </Link>
 
-          <button type="button" onClick={() => onRetweet(tweet.id)} className={`flex items-center gap-1.5 cursor-pointer hover:text-green-500 group transition bg-transparent border-none p-0 ${tweet.isRetweeted ? "text-green-500" : ""}`}>
-            <Repeat2 size={17} strokeWidth={tweet.isRetweeted ? 2.5 : 2} className="group-hover:scale-110 transition" />
-            <span className={tweet.isRetweeted ? "font-bold" : ""}>{displayRetweetCount}</span>
-          </button>
-
-          <button type="button" onClick={() => onLike(tweet.id)} className={`flex items-center gap-1.5 cursor-pointer hover:text-red-500 group transition bg-transparent border-none p-0 ${tweet.isLiked ? "text-red-500" : ""}`}>
+          <button 
+            type="button" 
+            onClick={() => onLike(tweet.id)} 
+            aria-label={tweet.isLiked ? "Ne plus aimer" : "Aimer"}
+            title={tweet.isLiked ? "Ne plus aimer" : "Aimer"}
+            className={`flex items-center gap-1.5 cursor-pointer hover:text-red-500 group transition bg-transparent border-none p-0 ${tweet.isLiked ? "text-red-500" : ""}`}
+          >
             <Heart size={17} strokeWidth={2} className={`group-hover:scale-110 transition ${tweet.isLiked ? "fill-red-500 text-red-500" : ""}`} />
             <span className={tweet.isLiked ? "font-bold" : ""}>{displayLikeCount}</span>
           </button>
 
-          <div className="cursor-pointer hover:text-blue-500 transition hover:scale-110">
-            <Share size={17} strokeWidth={2} />
-          </div>
-
           {isOwnTweet && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4 ml-auto">
               {onEdit && (
                 <button
                   type="button"
                   onClick={() => onEdit(tweet)}
-                  aria-label="Modifier le message" title="Modifier le message"
+                  aria-label="Modifier le message" 
+                  title="Modifier le message"
                   className="cursor-pointer text-breezy-gray hover:text-breezy-blue transition bg-transparent border-none p-0 flex items-center justify-center"
                 >
                   <Pencil size={17} strokeWidth={2} />
@@ -135,7 +147,8 @@ export function TweetCard({ tweet, onLike, onRetweet, onFollow, onDelete, onEdit
               <button
                 type="button"
                 onClick={() => onDelete && onDelete(tweet.id)}
-                aria-label="Supprimer le message" title="Supprimer le message"
+                aria-label="Supprimer le message" 
+                title="Supprimer le message"
                 className="cursor-pointer text-breezy-gray hover:text-red-500 transition bg-transparent border-none p-0 flex items-center justify-center"
               >
                 <Trash2 size={17} strokeWidth={2} />
