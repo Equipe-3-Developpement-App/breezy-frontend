@@ -7,7 +7,7 @@ import { ConfirmationModal } from "./modals/ConfirmationModal";
 import { ComposeModal } from "./modals/ComposeModal";
 import { Tweet } from "@/types";
 import { 
-  deleteTweetApi, getUserPosts, getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile, logoutApi,
+  deleteTweetApi, getUserPosts, getUserReplies, getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile, logoutApi,
   fetchCurrentUser, getUserProfileByAuthId, getFollowingIds, toggleFollowApi
 } from "@/utils/api";
 import { Settings, LogOut, X, RefreshCw, Camera } from "lucide-react";
@@ -19,12 +19,16 @@ interface ProfileContainerProps {
 
 export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("messages");
+  
+  const [activeTab, setActiveTab] = useState<"messages" | "responses">("messages");
   const [showSettings, setShowSettings] = useState(false);
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState({ followingCount: 0, followersCount: 0 });
+  
   const [userTweets, setUserTweets] = useState<Tweet[]>([]);
+  const [userReplies, setUserReplies] = useState<Tweet[]>([]);
+  
   const [loading, setLoading] = useState(true);
   
   const [isOwnProfile, setIsOwnProfile] = useState(true);
@@ -57,9 +61,10 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
         const own = actualTargetId === authUser.id.toString();
         if (isMounted) setIsOwnProfile(own);
 
-        const [userProf, tweetsData, followStats, myFollows] = await Promise.all([
+        const [userProf, tweetsData, repliesData, followStats, myFollows] = await Promise.all([
           getUserProfileByAuthId(actualTargetId),
           getUserPosts(actualTargetId),
+          getUserReplies(actualTargetId),
           getUserFollowStats(actualTargetId),
           own ? Promise.resolve([]) : getFollowingIds(authUser.id)
         ]);
@@ -69,6 +74,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
           setEditBio(userProf.bio || "");
           setEditAvatarUrl(userProf.avatar_url || "");
           setUserTweets(tweetsData);
+          setUserReplies(repliesData);
           setStats(followStats);
           
           if (!own) {
@@ -92,6 +98,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
       const updatedProfile = await updateUserProfile(editBio, editAvatarUrl);
       setProfile(updatedProfile);
       setUserTweets(current => current.map(t => ({ ...t, user: { ...t.user, avatarUrl: updatedProfile.avatar_url || undefined } })));
+      setUserReplies(current => current.map(t => ({ ...t, user: { ...t.user, avatarUrl: updatedProfile.avatar_url || undefined } })));
       setIsEditing(false);
     } catch (err) {} finally { setIsSaving(false); }
   };
@@ -114,6 +121,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
     setIsFollowing(!currentlyFollowing);
     setStats(s => ({ ...s, followersCount: s.followersCount + (currentlyFollowing ? -1 : 1) }));
     setUserTweets(current => current.map(tweet => ({ ...tweet, isFollowing: !currentlyFollowing })));
+    setUserReplies(current => current.map(tweet => ({ ...tweet, isFollowing: !currentlyFollowing })));
 
     try {
       await toggleFollowApi(targetId, currentlyFollowing);
@@ -121,20 +129,26 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
       setIsFollowing(currentlyFollowing);
       setStats(s => ({ ...s, followersCount: s.followersCount + (currentlyFollowing ? 1 : -1) }));
       setUserTweets(current => current.map(tweet => ({ ...tweet, isFollowing: currentlyFollowing })));
+      setUserReplies(current => current.map(tweet => ({ ...tweet, isFollowing: currentlyFollowing })));
     }
   };
 
   const handleLikeToggle = async (tweetId: string) => {
     let updatedIsLiked = false;
     let updatedCount = 0;
-    setUserTweets((current) => current.map((tweet) => {
+    
+    const updateFn = (current: Tweet[]) => current.map((tweet) => {
       if (tweet.id === tweetId) {
         updatedIsLiked = !tweet.isLiked;
         updatedCount = updatedIsLiked ? tweet.likeCount + 1 : Math.max(0, tweet.likeCount - 1);
         return { ...tweet, isLiked: updatedIsLiked, likeCount: updatedCount };
       }
       return tweet;
-    }));
+    });
+
+    setUserTweets(updateFn);
+    setUserReplies(updateFn);
+
     try {
       const { likeTweetApi } = await import("@/utils/api");
       await likeTweetApi(tweetId, updatedIsLiked, updatedCount);
@@ -149,6 +163,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
     if (!tweetToDelete) return;
     try {
       setUserTweets((current) => current.filter((t) => t.id !== tweetToDelete));
+      setUserReplies((current) => current.filter((t) => t.id !== tweetToDelete));
       await deleteTweetApi(tweetToDelete);
     } catch (err) {} finally { setTweetToDelete(null); }
   };
@@ -276,19 +291,21 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
           )}
         </div>
 
+        {/* 2 ONGLETS UNIQUEMENT */}
         <div className="flex justify-between items-center px-5 h-[44px] w-full bg-transparent border-b border-breezy-border-light">
-          {["messages", "responses", "medias"].map(tab => (
+          {(["messages", "responses"] as const).map(tab => (
             <button 
               key={tab} type="button" onClick={() => setActiveTab(tab)}
               aria-label={`Voir l'onglet ${tab}`} title={`Voir l'onglet ${tab}`}
               className={`flex-1 h-full flex flex-col justify-end items-center pb-2.5 text-[15px] cursor-pointer transition-all relative border-none bg-transparent ${activeTab === tab ? "text-breezy-dark font-extrabold" : "text-breezy-gray font-semibold hover:text-breezy-dark"}`}
             >
-              <span className="capitalize">{tab === "messages" ? "Messages" : tab === "responses" ? "Réponses" : "Médias"}</span>
+              <span className="capitalize">{tab === "messages" ? "Messages" : "Réponses"}</span>
               {activeTab === tab && <div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-breezy-blue" />}
             </button>
           ))}
         </div>
 
+        {/* AFFICHAGE DES ONGLETS */}
         <div className="w-full text-left">
           {activeTab === "messages" && (
             userTweets.length > 0 ? (
@@ -302,6 +319,21 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
               ))
             ) : (
               <div className="text-center p-8 text-breezy-gray text-[14.5px]">Aucun message à afficher.</div>
+            )
+          )}
+          
+          {activeTab === "responses" && (
+            userReplies.length > 0 ? (
+              userReplies.map((tweet) => (
+                <TweetCard
+                  key={tweet.id} tweet={tweet} onLike={handleLikeToggle} onFollow={handleFollowToggleFromTweet}
+                  onDelete={() => setTweetToDelete(tweet.id)}
+                  onEdit={setTweetToEdit}
+                  isOwnTweet={isOwnProfile}
+                />
+              ))
+            ) : (
+              <div className="text-center p-8 text-breezy-gray text-[14.5px]">Aucune réponse à afficher.</div>
             )
           )}
         </div>

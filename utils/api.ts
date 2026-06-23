@@ -228,6 +228,11 @@ export const getUserPosts = async (userId: string | number): Promise<Tweet[]> =>
   return hydrateTweets(response.data || []);
 };
 
+export const getUserReplies = async (userId: string | number): Promise<Tweet[]> => {
+  const response = await apiClient.get(`/api/posts/profile/${userId}/replies`);
+  return hydrateTweets(response.data || []);
+};
+
 export const createTweetApi = async (text: string, mediaUrl?: string | null): Promise<Tweet> => {
   const tags = text.match(/#[a-zA-Z0-9_À-ÿ]+/g)?.map(t => t.slice(1).toLowerCase()) || [];
   const response = await apiClient.post("/api/posts/create", { content: text, media: mediaUrl, tag: tags });
@@ -271,12 +276,19 @@ export const searchTweetsByTag = async (query: string): Promise<Tweet[]> => {
 
 export const getTweetById = async (tweetId: string) => {
   const response = await apiClient.get(`/api/posts/${tweetId}`);
+  
+  let hydratedParentArr: Tweet[] = [];
+  if (response.data.parentPost) {
+    hydratedParentArr = await hydrateTweets([response.data.parentPost]);
+  }
+
   const hydratedPostArr = await hydrateTweets([response.data.post]);
   const hydratedCommentsArr = await hydrateTweets(response.data.comments || []);
   
   if (hydratedPostArr.length === 0) throw new Error("Post introuvable");
   
   return {
+    parentPost: hydratedParentArr.length > 0 ? hydratedParentArr[0] : null,
     ...hydratedPostArr[0],
     comments: hydratedCommentsArr
   };
