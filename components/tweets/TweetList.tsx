@@ -173,12 +173,11 @@ export function TweetList({ mode }: TweetListProps) {
         />
       ))}
 
-      {/* Bouton "Charger plus" — uniquement mode explore */}
       {mode === "explore" && hasMore && (
         <button
           onClick={handleLoadMore}
           disabled={loadingMore}
-          className="flex items-center justify-center gap-2 w-full py-4 text-[#2A6FDB] font-semibold text-sm hover:bg-blue-50 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center gap-2 w-full py-4 text-[#2A6FDB] font-semibold text-sm hover:bg-blue-50 transition-colors disabled:opacity-50 border-none cursor-pointer"
         >
           {loadingMore ? (
             <RefreshCw className="animate-spin" size={16} />

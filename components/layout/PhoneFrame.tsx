@@ -1,18 +1,27 @@
+"use client";
+
 import React from "react";
+import { RightSidebar } from "./RightSidebar";
 
 interface PhoneFrameProps {
   children: React.ReactNode;
-  bgWhite?: boolean; // Allows switching the background to white for login/register
+  bgWhite?: boolean;
 }
 
 export function PhoneFrame({ children, bgWhite = false }: PhoneFrameProps) {
   return (
-    <div className="flex justify-center items-center bg-gray-900 min-h-screen w-full p-4 select-none">
-      <main className={`relative flex flex-col w-full max-w-[499px] h-[900px] shadow-2xl rounded-3xl overflow-hidden border border-gray-800 font-sans ${
-        bgWhite ? "bg-white px-[26px] pt-[30px] pb-[60px]" : "bg-[#EEF4FA]"
+    <div className={`flex justify-center min-h-[100dvh] w-full font-sans transition-colors ${
+      bgWhite ? "bg-white" : "bg-[#EEF4FA]"
+    }`}>
+      
+      <main className={`relative flex flex-col w-full sm:max-w-[600px] min-h-[100dvh] sm:border-x border-[#E2EAF2] ${
+        bgWhite ? "px-[26px] pt-[30px] pb-[60px]" : "bg-white"
       }`}>
         {children}
       </main>
+
+      {!bgWhite && <RightSidebar />}
+
     </div>
   );
 }

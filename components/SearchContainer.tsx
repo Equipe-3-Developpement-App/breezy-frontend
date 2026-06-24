@@ -142,10 +142,10 @@ export function SearchContainer() {
   };
 
   return (
-    <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden bg-breezy-bgLight">
+    <div className="w-full min-h-screen">
 
-      <header className="px-[18px] pt-[35px] bg-white border-b border-breezy-border-light z-10 shrink-0">
-        <div className="relative flex items-center w-full h-[40px] bg-gray-100 rounded-full px-4 border border-transparent focus-within:border-breezy-blue transition-colors mb-3">
+      <div className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-breezy-border-light">
+        <div className="relative flex items-center w-[90%] mx-auto h-[40px] bg-gray-100 rounded-full px-4 border border-transparent focus-within:border-breezy-blue transition-colors mt-[35px] mb-3">
           <Search size={18} className="text-breezy-gray shrink-0" />
           <input
             type="text"
@@ -158,7 +158,7 @@ export function SearchContainer() {
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full text-breezy-gray cursor-pointer transition-colors border-none"
+              className="p-1 bg-gray-200 hover:bg-gray-300 rounded-full text-breezy-gray cursor-pointer transition-colors border-none flex"
               aria-label="Effacer la recherche"
               title="Effacer la recherche"
             >
@@ -171,7 +171,7 @@ export function SearchContainer() {
           <button 
             type="button"
             onClick={() => setActiveTab("posts")}
-            className={`flex-1 h-full flex flex-col justify-end items-center pb-2.5 text-[15px] cursor-pointer transition-all relative ${activeTab === "posts" ? "text-breezy-dark font-extrabold" : "text-breezy-gray font-semibold hover:text-breezy-dark"}`}
+            className={`flex-1 h-full flex flex-col justify-end items-center pb-2.5 text-[15px] cursor-pointer transition-all relative border-none bg-transparent ${activeTab === "posts" ? "text-breezy-dark font-extrabold" : "text-breezy-gray font-semibold hover:text-breezy-dark"}`}
           >
             <span>Posts</span>
             {activeTab === "posts" && <div className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-breezy-blue rounded-t-full" />}
@@ -179,15 +179,15 @@ export function SearchContainer() {
           <button 
             type="button"
             onClick={() => setActiveTab("users")}
-            className={`flex-1 h-full flex flex-col justify-end items-center pb-2.5 text-[15px] cursor-pointer transition-all relative ${activeTab === "users" ? "text-breezy-dark font-extrabold" : "text-breezy-gray font-semibold hover:text-breezy-dark"}`}
+            className={`flex-1 h-full flex flex-col justify-end items-center pb-2.5 text-[15px] cursor-pointer transition-all relative border-none bg-transparent ${activeTab === "users" ? "text-breezy-dark font-extrabold" : "text-breezy-gray font-semibold hover:text-breezy-dark"}`}
           >
             <span>Utilisateurs</span>
             {activeTab === "users" && <div className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-breezy-blue rounded-t-full" />}
           </button>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-y-auto pb-[68px] no-scrollbar">
+      <div className="w-full text-left pb-24 md:pb-6">
 
         {query.trim() && loading && (
           <div className="flex justify-center p-8">
@@ -195,7 +195,6 @@ export function SearchContainer() {
           </div>
         )}
 
-        {/* RÉSULTATS : POSTS */}
         {activeTab === "posts" && query.trim() && !loading && postResults.length > 0 && (
           <div className="flex flex-col">
             {postResults.map((tweet) => (
@@ -212,7 +211,6 @@ export function SearchContainer() {
           </div>
         )}
 
-        {/* RÉSULTATS : UTILISATEURS */}
         {activeTab === "users" && query.trim() && !loading && userResults.length > 0 && (
           <div className="flex flex-col">
             {userResults.map((user) => (
@@ -239,7 +237,7 @@ export function SearchContainer() {
             <h2 className="font-extrabold text-[19px] text-breezy-dark tracking-tight">Tendances</h2>
             <div className="flex flex-wrap gap-2">
               {trendingTags.map(tag => (
-                <button key={tag} type="button" onClick={() => setQuery(tag)} className="flex items-center gap-1 px-4 py-2 bg-white border border-breezy-border-light rounded-full text-[14.5px] font-bold text-breezy-blue hover:bg-blue-50 transition-colors cursor-pointer border-none">
+                <button key={tag} type="button" onClick={() => setQuery(tag)} className="flex items-center gap-1 px-4 py-2 bg-white border border-breezy-border-light rounded-full text-[14.5px] font-bold text-breezy-blue hover:bg-blue-50 transition-colors cursor-pointer border-none shadow-sm">
                   <Hash size={16} /> {tag}
                 </button>
               ))}
