@@ -307,3 +307,14 @@ export const getTweetById = async (tweetId: string) => {
 export const deleteTweetApi = async (tweetId: string) => {
   await apiClient.delete(`/api/posts/${tweetId}`);
 };
+
+// ===========================================================================
+//  SUSPEND BAN
+// ===========================================================================-
+export async function moderateAccountApi(idAuth: string | number, action: "ban" | "suspend" | "unban", durationDays?: number) {
+  const response = await apiClient.patch(`/api/auth/moderate/${idAuth}`, {
+    action,
+    duration_days: durationDays
+  });
+  return response.data;
+}

@@ -38,8 +38,31 @@ export function LoginForm() {
     try {
       await loginApi(data.email, data.password);
       router.push("/feed");
-    } catch (error) {
-      setServerError(getErrorMessage(error, "Identifiants invalides"));
+    } catch (error: any) {
+      const rawMessage = getErrorMessage(error, "Identifiants invalides");
+      
+      // PARSING DU TIMER ILLISIBLE : Si le message contient une date ISO de suspension
+      if (rawMessage.includes("Ce compte est suspendu jusqu'au")) {
+        try {
+          const isoDateMatch = rawMessage.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z/);
+          if (isoDateMatch) {
+            const dateObj = new Date(isoDateMatch[0]);
+            const formattedDate = dateObj.toLocaleString("fr-FR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit"
+            });
+            setServerError(`Ce compte est suspendu jusqu'au ${formattedDate}`);
+            return;
+          }
+        } catch (e) {
+          console.error("Format date parsing error", e);
+        }
+      }
+      
+      setServerError(rawMessage);
     }
   };
 
@@ -67,7 +90,7 @@ export function LoginForm() {
 
       <footer className="flex flex-col items-center gap-3 w-full">
         {serverError && (
-          <p className="text-[14px] text-red-500 text-center w-full" role="alert">
+          <p className="text-[13.5px] text-red-500 text-center w-full font-semibold px-2 leading-tight" role="alert">
             {serverError}
           </p>
         )}

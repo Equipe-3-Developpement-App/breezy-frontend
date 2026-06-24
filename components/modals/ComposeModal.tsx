@@ -5,6 +5,7 @@ import { X, Image, Tag, Smile } from "lucide-react";
 import { createTweetApi, updateTweetApi, createCommentApi, uploadMediaApi, getCurrentUserProfile, UserProfile } from "@/utils/api";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Tweet } from "@/types";
+import { useRouter, usePathname } from "next/navigation";
 
 interface ComposeModalProps {
   onClose: () => void;
@@ -13,6 +14,8 @@ interface ComposeModalProps {
 }
 
 export function ComposeModal({ onClose, tweetToEdit, tweetToReplyTo }: ComposeModalProps) {
+  const router = useRouter(); 
+  const pathname = usePathname(); 
   const [text, setText] = useState(tweetToEdit ? tweetToEdit.content : "");
   const [isPublishing, setIsPublishing] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -60,6 +63,13 @@ export function ComposeModal({ onClose, tweetToEdit, tweetToReplyTo }: ComposeMo
         
         if (tweetToReplyTo) {
           await createCommentApi(tweetToReplyTo.id, text.trim());
+          
+          onClose();
+          router.replace(pathname); 
+          setTimeout(() => {
+            window.location.reload();
+          }, 50);
+          return;
         } else {
           let finalMediaUrl = tweetToEdit ? tweetToEdit.media : null;
 

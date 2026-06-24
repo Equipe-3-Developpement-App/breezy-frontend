@@ -5,12 +5,13 @@ import { NavBar } from "./layout/NavBar";
 import { TweetCard } from "./tweets/TweetCard";
 import { ConfirmationModal } from "./modals/ConfirmationModal";
 import { ComposeModal } from "./modals/ComposeModal";
+import { ModerateUserModal } from "./modals/ModerateUserModal";
 import { Tweet } from "@/types";
 import { 
   deleteTweetApi, getUserPosts, getUserReplies, getUserFollowStats, updateUserProfile, uploadMediaApi, UserProfile,
   fetchCurrentUser, getUserProfileByAuthId, getFollowingIds, toggleFollowApi
 } from "@/utils/api";
-import { RefreshCw, Camera } from "lucide-react";
+import { RefreshCw, Camera, ShieldAlert } from "lucide-react";
 
 interface ProfileContainerProps {
   targetUserId?: string;
@@ -30,6 +31,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
   const [isOwnProfile, setIsOwnProfile] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   
   const [editBio, setEditBio] = useState("");
   const [editAvatarUrl, setEditAvatarUrl] = useState("");
@@ -39,6 +41,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null);
+  const [isModerateOpen, setIsModerateOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -48,6 +51,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
         setLoading(true);
         const authUser = await fetchCurrentUser();
         if (!authUser) return;
+        if (isMounted) setCurrentUserRole(authUser.role);
 
         const actualTargetId = targetUserId || authUser.id.toString();
         const own = actualTargetId === authUser.id.toString();
@@ -151,14 +155,36 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
     await handleFollowToggleProfile();
   };
 
-  const handleConfirmDelete = async () => {
-    if (!tweetToDelete) return;
-    try {
-      setUserTweets((current) => current.filter((t) => t.id !== tweetToDelete));
-      setUserReplies((current) => current.filter((t) => t.id !== tweetToDelete));
-      await deleteTweetApi(tweetToDelete);
-    } catch (err) {} finally { setTweetToDelete(null); }
-  };
+const handleConfirmDelete = async () => {
+  if (!tweetToDelete) return;
+  try {
+    const allLists = [...userTweets, ...userReplies];
+    const targetTweet = allLists.find(t => t.id === tweetToDelete);
+    const hasComments = targetTweet ? targetTweet.commentCount > 0 : false;
+
+    const updateLists = (current: Tweet[]) => {
+      if (hasComments) {
+        return current.map(t => t.id === tweetToDelete ? {
+          ...t,
+          content: "[Ce message a été supprimé par son auteur]",
+          media: null,
+          tags: []
+        } : t);
+      } else {
+        return current.filter((t) => t.id !== tweetToDelete);
+      }
+    };
+
+    setUserTweets(updateLists);
+    setUserReplies(updateLists);
+
+    await deleteTweetApi(tweetToDelete);
+  } catch (err) {
+    console.error("Erreur lors de la suppression:", err);
+  } finally {
+    setTweetToDelete(null);
+  }
+};
 
   if (loading || !profile) {
     return (
@@ -210,18 +236,31 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
                 </button>
               )
             ) : (
-              <button
-                type="button"
-                onClick={handleFollowToggleProfile}
-                aria-label={isFollowing ? "Se désabonner" : "Suivre"}
-                title={isFollowing ? "Se désabonner" : "Suivre"}
-                className={`px-6 h-[36px] font-bold text-[14px] rounded-full transition-all duration-200 cursor-pointer active:scale-95 border select-none
-                  ${isFollowing
-                    ? "bg-breezy-blue border-breezy-blue text-white hover:bg-breezy-darkBlue"
-                    : "bg-transparent border-breezy-blue text-breezy-blue hover:bg-blue-50"}`}
-              >
-                {isFollowing ? "Suivi" : "Suivre"}
-              </button>
+              <div className="flex items-center gap-2">
+                {(currentUserRole === "admin" || currentUserRole === "moderator") && (
+                  <button
+                    type="button"
+                    onClick={() => setIsModerateOpen(true)}
+                    aria-label="Modérer ce compte utilisateur"
+                    title="Modérer ce compte"
+                    className="w-9 h-9 border border-red-200 hover:border-red-300 text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-transparent"
+                  >
+                    <ShieldAlert size={19} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleFollowToggleProfile}
+                  aria-label={isFollowing ? "Se désabonner" : "Suivre"}
+                  title={isFollowing ? "Se désabonner" : "Suivre"}
+                  className={`px-6 h-[36px] font-bold text-[14px] rounded-full transition-all duration-200 cursor-pointer active:scale-95 border select-none
+                    ${isFollowing
+                      ? "bg-breezy-blue border-breezy-blue text-white hover:bg-breezy-darkBlue"
+                      : "bg-transparent border-breezy-blue text-breezy-blue hover:bg-blue-50"}`}
+                >
+                  {isFollowing ? "Suivi" : "Suivre"}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -334,6 +373,14 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
         <ComposeModal 
           onClose={() => { setShowCompose(false); setTweetToEdit(null); window.location.reload(); }} 
           tweetToEdit={tweetToEdit} 
+        />
+      )}
+
+      {isModerateOpen && (
+        <ModerateUserModal 
+          idAuth={profile.id_auth} 
+          username={profile.username} 
+          onClose={() => setIsModerateOpen(false)} 
         />
       )}
     </>
