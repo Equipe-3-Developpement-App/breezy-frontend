@@ -16,6 +16,7 @@ export function FeedContainer() {
   const [showSettings, setShowSettings] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null); 
+  const [activeTab, setActiveTab] = useState<"following" | "explore">("following");
 
   useEffect(() => {
     getCurrentUserProfile().then(setCurrentUser);
@@ -35,7 +36,7 @@ export function FeedContainer() {
   };
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <header className="flex justify-between items-center px-[18px] pt-[35px] pb-[20px] bg-[#EEF4FA]/80 backdrop-blur-md z-10 border-b border-gray-200/50 w-full">
         <div className="flex items-center gap-2 font-extrabold text-[19px] text-[#16212E] tracking-tight">
           <Wind size={20} className="text-[#2A6FDB]" strokeWidth={2.5} />
@@ -85,7 +86,34 @@ export function FeedContainer() {
         </div>
       </div>
 
-      <TweetList />
+      <div className="flex border-b border-[#E2EAF2] bg-white sticky top-0 z-10">
+        <button
+          type="button"
+          onClick={() => setActiveTab("following")}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+            activeTab === "following"
+              ? "text-[#2A6FDB] border-b-2 border-[#2A6FDB]"
+              : "text-[#9AABBF] hover:text-[#5C708A]"
+          }`}
+        >
+          Pour vous
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("explore")}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+            activeTab === "explore"
+              ? "text-[#2A6FDB] border-b-2 border-[#2A6FDB]"
+              : "text-[#9AABBF] hover:text-[#5C708A]"
+          }`}
+        >
+          Explorer
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+        <TweetList mode={activeTab} key={activeTab} />
+      </div>
 
       <button 
         type="button" 
@@ -117,6 +145,6 @@ export function FeedContainer() {
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

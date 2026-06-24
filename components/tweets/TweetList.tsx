@@ -1,143 +1,218 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { TweetCard } from "./TweetCard";
 import { ConfirmationModal } from "../modals/ConfirmationModal";
 import { ComposeModal } from "../modals/ComposeModal";
 import { Tweet } from "@/types";
-import { getTweets, deleteTweetApi, getCurrentUserProfile, UserProfile } from "@/utils/api";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import {
+  getTweets,
+  getExploreTweets,
+  deleteTweetApi,
+  getCurrentUserProfile,
+  UserProfile,
+} from "@/utils/api";
+import { AlertCircle, RefreshCw, ChevronDown } from "lucide-react";
 
-export function TweetList() {
+interface TweetListProps {
+  mode: "following" | "explore";
+}
+
+const PAGE_SIZE = 15;
+
+export function TweetList({ mode }: TweetListProps) {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [tweetToDelete, setTweetToDelete] = useState<string | null>(null);
   const [tweetToEdit, setTweetToEdit] = useState<Tweet | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchInitial = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setOffset(0);
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const [user, data] = await Promise.all([
-          getCurrentUserProfile(),
-          getTweets()
-        ]);
-        
-        if (isMounted) {
-          setCurrentUser(user);
-          const filteredTweets = data.filter(t => t.user.id !== user?.id_auth?.toString());
-          setTweets(filteredTweets);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError("Impossible de charger les messages. Vérifiez votre connexion.");
-          console.error(err);
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+      const user = await getCurrentUserProfile();
+      setCurrentUser(user);
+
+      if (mode === "following") {
+        const data = await getTweets();
+        setTweets(data.filter((t) => t.user.id !== user?.id_auth?.toString()));
+        setHasMore(false);
+      } else {
+        const { tweets: data, hasMore: more } = await getExploreTweets(PAGE_SIZE, 0);
+        setTweets(data);
+        setHasMore(more);
+        setOffset(PAGE_SIZE);
       }
-    };
+    } catch {
+      setError("Impossible de charger les messages.");
+    } finally {
+      setLoading(false);
+    }
+  }, [mode]);
 
-    fetchData();
+  useEffect(() => {
+    fetchInitial();
+  }, [fetchInitial]);
 
-    return () => { isMounted = false; };
-  }, []);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    try {
+      setLoadingMore(true);
+      const { tweets: more, hasMore: stillMore } = await getExploreTweets(PAGE_SIZE, offset);
+      setTweets((prev) => [
+        ...prev,
+        ...more.filter((t) => !prev.some((p) => p.id === t.id)),
+      ]);
+      setHasMore(stillMore);
+      setOffset((o) => o + PAGE_SIZE);
+    } catch {
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleLikeToggle = async (tweetId: string) => {
     let updatedIsLiked = false;
     let updatedCount = 0;
-    setTweets((currentTweets) => currentTweets.map((tweet) => {
-      if (tweet.id === tweetId) {
-        updatedIsLiked = !tweet.isLiked;
-        updatedCount = updatedIsLiked ? tweet.likeCount + 1 : Math.max(0, tweet.likeCount - 1);
-        return { ...tweet, isLiked: updatedIsLiked, likeCount: updatedCount };
-      }
-      return tweet;
-    }));
+    setTweets((current) =>
+      current.map((t) => {
+        if (t.id === tweetId) {
+          updatedIsLiked = !t.isLiked;
+          updatedCount = updatedIsLiked ? t.likeCount + 1 : Math.max(0, t.likeCount - 1);
+          return { ...t, isLiked: updatedIsLiked, likeCount: updatedCount };
+        }
+        return t;
+      })
+    );
     try {
       const { likeTweetApi } = await import("@/utils/api");
       await likeTweetApi(tweetId, updatedIsLiked, updatedCount);
-    } catch (err) { console.error(err); }
+    } catch {}
   };
 
   const handleFollowToggle = async (userId: string) => {
-    const target = tweets.find(t => t.user.id === userId);
+    const target = tweets.find((t) => t.user.id === userId);
     if (!target) return;
     const isCurrentlyFollowing = target.isFollowing;
-
-    setTweets((current) => current.map((tweet) => {
-      if (tweet.user.id === userId) return { ...tweet, isFollowing: !isCurrentlyFollowing };
-      return tweet;
-    }));
-
+    setTweets((current) =>
+      current.map((t) =>
+        t.user.id === userId ? { ...t, isFollowing: !isCurrentlyFollowing } : t
+      )
+    );
     try {
       const { followUserApi, unfollowUserApi } = await import("@/utils/api");
-      if (isCurrentlyFollowing) {
-        await unfollowUserApi(userId);
-      } else {
-        await followUserApi(userId);
-      }
-    } catch (err) {
-      setTweets((current) => current.map((tweet) => {
-        if (tweet.user.id === userId) return { ...tweet, isFollowing: isCurrentlyFollowing };
-        return tweet;
-      }));
+      if (isCurrentlyFollowing) await unfollowUserApi(userId);
+      else await followUserApi(userId);
+    } catch {
+      setTweets((current) =>
+        current.map((t) =>
+          t.user.id === userId ? { ...t, isFollowing: isCurrentlyFollowing } : t
+        )
+      );
     }
   };
-
-  const openDeleteConfirmation = (tweetId: string) => setTweetToDelete(tweetId);
 
   const handleConfirmDelete = async () => {
     if (!tweetToDelete) return;
     try {
-      setTweets((currentTweets) => currentTweets.filter((tweet) => tweet.id !== tweetToDelete));
+      const targetTweet = tweets.find((t) => t.id === tweetToDelete);
+      const hasComments = targetTweet ? targetTweet.commentCount > 0 : false;
+      setTweets((current) => {
+        if (hasComments)
+          return current.map((t) =>
+            t.id === tweetToDelete
+              ? { ...t, content: "[Ce message a été supprimé par son auteur]", media: null, tags: [] }
+              : t
+          );
+        return current.filter((t) => t.id !== tweetToDelete);
+      });
       await deleteTweetApi(tweetToDelete);
-    } catch (err) { console.error(err); } finally { setTweetToDelete(null); }
+    } catch {} finally {
+      setTweetToDelete(null);
+    }
   };
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-breezy-gray gap-3 animate-pulse">
+      <div className="flex flex-col items-center justify-center p-8 text-breezy-gray gap-3">
         <RefreshCw className="animate-spin text-breezy-blue" size={24} />
-        <span className="text-[14.5px] font-medium">Chargement du flux Breezy...</span>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-breezy-gray gap-4">
+      <div className="flex flex-col items-center justify-center p-6 text-center text-breezy-gray gap-4">
         <AlertCircle size={40} className="text-red-500" />
-        <p className="text-[15px] font-semibold text-breezy-dark">{error}</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-breezy-blue text-white text-[13.5px] font-bold rounded-full hover:bg-breezy-darkBlue transition">Réessayer</button>
+        <button
+          onClick={fetchInitial}
+          className="px-4 py-2 bg-breezy-blue text-white rounded-full"
+        >
+          Réessayer
+        </button>
       </div>
     );
-  }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-24 no-scrollbar">
+    <div className="w-full pb-24 md:pb-6">
       {tweets.map((tweet) => (
-        <TweetCard 
+        <TweetCard
           key={tweet.id}
           tweet={tweet}
           onLike={handleLikeToggle}
           onFollow={handleFollowToggle}
-          onDelete={openDeleteConfirmation}
+          onDelete={setTweetToDelete}
           onEdit={setTweetToEdit}
-          isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id} 
+          isOwnTweet={currentUser?.id_auth?.toString() === tweet.user.id}
         />
       ))}
 
-      <ConfirmationModal isOpen={tweetToDelete !== null} title="Supprimer le message ?" message="Cette action est irréversible. Le message sera définitivement retiré du flux." confirmLabel="Supprimer" cancelLabel="Annuler" onConfirm={handleConfirmDelete} onCancel={() => setTweetToDelete(null)} />
-      
-      {tweetToEdit && <ComposeModal onClose={() => { setTweetToEdit(null); window.location.reload(); }} tweetToEdit={tweetToEdit} />}
+      {/* Bouton "Charger plus" — uniquement mode explore */}
+      {mode === "explore" && hasMore && (
+        <button
+          onClick={handleLoadMore}
+          disabled={loadingMore}
+          className="flex items-center justify-center gap-2 w-full py-4 text-[#2A6FDB] font-semibold text-sm hover:bg-blue-50 transition-colors disabled:opacity-50"
+        >
+          {loadingMore ? (
+            <RefreshCw className="animate-spin" size={16} />
+          ) : (
+            <>
+              <ChevronDown size={16} />
+              Charger plus de posts
+            </>
+          )}
+        </button>
+      )}
+
+      {mode === "explore" && !hasMore && tweets.length > 0 && (
+        <p className="text-center text-xs text-breezy-gray py-6">
+          Vous avez tout vu
+        </p>
+      )}
+
+      <ConfirmationModal
+        isOpen={tweetToDelete !== null}
+        title="Supprimer ?"
+        message="Irréversible."
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setTweetToDelete(null)}
+      />
+      {tweetToEdit && (
+        <ComposeModal
+          onClose={() => {
+            setTweetToEdit(null);
+            window.location.reload();
+          }}
+          tweetToEdit={tweetToEdit}
+        />
+      )}
     </div>
   );
 }

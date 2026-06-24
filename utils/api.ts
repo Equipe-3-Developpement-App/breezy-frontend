@@ -233,6 +233,19 @@ export const getTweets = async (): Promise<Tweet[]> => {
   return hydrateTweets(response.data.posts || []);
 };
 
+export const getExploreTweets = async (
+  limit = 15,
+  offset = 0
+): Promise<{ tweets: Tweet[]; hasMore: boolean }> => {
+  const response = await apiClient.get("/api/posts/explore", {
+    params: { limit, offset },
+  });
+  const posts = response.data.posts || [];
+  const total = response.data.total ?? posts.length;
+  const tweets = await hydrateTweets(posts);
+  return { tweets, hasMore: offset + limit < total };
+};
+
 export const getUserPosts = async (userId: string | number): Promise<Tweet[]> => {
   const response = await apiClient.get(`/api/posts/profile/${userId}`);
   return hydrateTweets(response.data || []);
