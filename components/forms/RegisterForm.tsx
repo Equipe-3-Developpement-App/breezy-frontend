@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FormField } from "./FormField";
-import { useRouter } from "next/navigation";
 import { registerApi, getErrorMessage } from "@/utils/api";
 
 const registerSchema = z.object({
@@ -26,8 +26,8 @@ const registerSchema = z.object({
 type RegisterInput = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
-  const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const {
     register,
@@ -41,11 +41,30 @@ export function RegisterForm() {
     setServerError(null);
     try {
       await registerApi(data.username, data.email, data.password);
-      router.push("/feed");
+      setRegisteredEmail(data.email);
     } catch (error) {
       setServerError(getErrorMessage(error, "La création du compte a échoué"));
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <div className="flex flex-col items-center text-center gap-4 w-full flex-1 justify-center">
+        <Mail size={48} className="text-[#2A6FDB]" strokeWidth={2} />
+        <h2 className="text-[20px] font-extrabold text-[#16212E]">Vérifie ta boîte mail</h2>
+        <p className="text-[14px] text-[#5C708A] leading-[20px]">
+          Un email de vérification a été envoyé à <strong>{registeredEmail}</strong>.
+          Clique sur le lien qu'il contient pour activer ton compte, puis connecte-toi.
+        </p>
+        <Link
+          href="/login"
+          className="mt-2 w-full h-[47.19px] bg-[#2A6FDB] hover:bg-[#1e52a4] text-white font-bold text-[16px] rounded-full flex items-center justify-center cursor-pointer active:scale-98 transition-all select-none"
+        >
+          Aller à la connexion
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col w-full h-full justify-between flex-1">

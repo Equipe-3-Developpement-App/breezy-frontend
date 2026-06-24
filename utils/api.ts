@@ -55,8 +55,30 @@ export interface CurrentUser {
   role: string;
 }
 
+const PENDING_USERNAME_KEY = "breezy_pending_username";
+
+// Crée le profil en attente (username choisi à l'inscription) une fois le
+// compte connecté pour la première fois — l'inscription seule ne loggue plus
+// l'utilisateur tant que son email n'est pas vérifié.
+async function finalizePendingProfile() {
+  if (typeof window === "undefined") return;
+  const pendingUsername = localStorage.getItem(PENDING_USERNAME_KEY);
+  if (!pendingUsername) return;
+  try {
+    const current = await fetchCurrentUser();
+    if (!current) return;
+    const existing = await getUserProfileByAuthId(current.id);
+    if (!existing) {
+      await apiClient.post("/api/users/", { username: pendingUsername });
+    }
+  } finally {
+    localStorage.removeItem(PENDING_USERNAME_KEY);
+  }
+}
+
 export async function loginApi(email: string, password: string): Promise<void> {
   await apiClient.post("/api/auth/login", { email, password });
+  await finalizePendingProfile();
 }
 
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
@@ -68,8 +90,26 @@ export async function registerApi(username: string, email: string, password: str
   const available = await checkUsernameAvailable(username);
   if (!available) throw new ApiError("Ce nom d'utilisateur est déjà pris");
   await apiClient.post("/api/auth/register", { email, password });
-  await loginApi(email, password);
-  await apiClient.post("/api/users/", { username });
+  if (typeof window !== "undefined") {
+    localStorage.setItem(PENDING_USERNAME_KEY, username);
+  }
+}
+
+export async function verifyEmailApi(token: string): Promise<string> {
+  const res = await apiClient.get("/api/auth/verify-email", { params: { token } });
+  return res.data?.data?.message || "Adresse email vérifiée avec succès";
+}
+
+export async function resendVerificationApi(email: string) {
+  await apiClient.post("/api/auth/resend-verification", { email });
+}
+
+export async function forgotPasswordApi(email: string) {
+  await apiClient.post("/api/auth/forgot-password", { email });
+}
+
+export async function resetPasswordApi(token: string, password: string) {
+  await apiClient.post("/api/auth/reset-password", { token, password });
 }
 
 export async function adminCreateUserApi(username: string, email: string, password: string) {
