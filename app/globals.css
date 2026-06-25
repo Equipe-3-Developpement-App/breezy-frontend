@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-breezy-blue: #2A6FDB;
+  --color-breezy-dark-blue: #1e52a4;
+  --color-breezy-dark: #16212E;
+  --color-breezy-gray: #5C708A;
+  --color-breezy-light-gray: #CDD9E6;
+  --color-breezy-bg-light: #EEF4FA;
+  --color-breezy-border-light: #E2EAF2;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  /* hide scrollbar for WebKit/Blink-based browsers */
+  display: none; /* older behavior */
+  width: 0; /* fallback for browsers that don't honor display:none */
+  height: 0;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* Firefox */
+  scrollbar-width: none;
+  /* For browsers that don't support scrollbar-width (Chrome <121, Safari, iOS Safari, Samsung Internet)*/
+}
+
+  .bg-avatar-1 { background: linear-gradient(140deg, #5194D6 0%, #2A2FC0 100%); }
+.bg-avatar-2 { background: linear-gradient(140deg, #8F51D6 0%, #B62AC0 100%); }
+.bg-avatar-3 { background: linear-gradient(140deg, #D68F51 0%, #C0B62A 100%); }
+.bg-avatar-4 { background: linear-gradient(140deg, #51D6AE 0%, #2AA7C0 100%); }
