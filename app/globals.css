@@ -22,3 +22,8 @@
   scrollbar-width: none;
   /* For browsers that don't support scrollbar-width (Chrome <121, Safari, iOS Safari, Samsung Internet)*/
 }
+
+  .bg-avatar-1 { background: linear-gradient(140deg, #5194D6 0%, #2A2FC0 100%); }
+.bg-avatar-2 { background: linear-gradient(140deg, #8F51D6 0%, #B62AC0 100%); }
+.bg-avatar-3 { background: linear-gradient(140deg, #D68F51 0%, #C0B62A 100%); }
+.bg-avatar-4 { background: linear-gradient(140deg, #51D6AE 0%, #2AA7C0 100%); }

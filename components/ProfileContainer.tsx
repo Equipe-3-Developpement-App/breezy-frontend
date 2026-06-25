@@ -146,7 +146,7 @@ export function ProfileContainer({ targetUserId }: ProfileContainerProps = {}) {
             {profile && (
               isOwnProfile ? (!isEditing && <button type="button" onClick={() => setIsEditing(true)} className="px-4 h-[36px] border border-[#CDD9E6] bg-white text-breezy-dark font-bold text-[14px] rounded-full cursor-pointer">Modifier le profil</button>) : (
                 <div className="flex items-center gap-2">
-                  {(currentUserRole === "admin" || currentUserRole === "moderator") && <button type="button" onClick={() => setIsModerateOpen(true)} className="w-9 h-9 border border-red-200 text-red-500 rounded-full flex items-center justify-center bg-transparent" aria-label="Modérer"><ShieldAlert size={19} /></button>}
+                  {(currentUserRole === "admin" || currentUserRole === "moderator") && <button type="button" onClick={() => setIsModerateOpen(true)} className="w-9 h-9 border border-red-200 text-red-500 rounded-full flex items-center justify-center bg-transparent cursor-pointer" aria-label="Modérer"><ShieldAlert size={19} /></button>}
                   <button type="button" onClick={handleFollowToggleProfile} className={`px-6 h-[36px] font-bold text-[14px] rounded-full border cursor-pointer ${isFollowing ? "bg-breezy-blue border-breezy-blue text-white" : "bg-transparent border-breezy-blue text-breezy-blue"}`}>{isFollowing ? "Suivi" : "Suivre"}</button>
                 </div>
               )

@@ -7,6 +7,15 @@ import { ComposeModal } from "./modals/ComposeModal";
 import { Wind } from "lucide-react"; 
 import { getCurrentUserProfile, UserProfile } from "@/utils/api";
 
+const getAvatarClass = (username: string) => {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % 4 + 1;
+  return `bg-avatar-${index}`;
+};
+
 export function FeedContainer() {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -32,14 +41,18 @@ export function FeedContainer() {
 
         <div onClick={() => setIsComposeOpen(true)} className="flex items-start p-4 gap-3 cursor-pointer hover:bg-gray-50/50 transition-colors">
           {currentUser?.avatar_url ? (
-            <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden">
-              <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-gradient-to-br from-[#D2D2D2] to-[#767676] flex items-center justify-center font-bold text-white text-[16px] overflow-hidden">
-              {currentUser?.username ? currentUser.username.substring(0, 2).toUpperCase() : ""}
-            </div>
-          )}
+                <div className="w-[42px] h-[42px] shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden">
+                  <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div 
+                  className={`w-[42px] h-[42px] shrink-0 rounded-full flex items-center justify-center font-bold text-white text-[16px] overflow-hidden ${
+                    currentUser?.username ? getAvatarClass(currentUser.username) : "bg-gray-400"
+                  }`}
+                >
+                  {currentUser?.username ? currentUser.username.substring(0, 2).toUpperCase() : ""}
+                </div>
+              )}
           <div className="flex-1 pt-2">
             <span className="text-[15px] text-[#9AABBF]">Comment ça va ?</span>
           </div>
